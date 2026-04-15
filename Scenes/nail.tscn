@@ -1,0 +1,116 @@
+[gd_scene format=3 uid="uid://0aqh1aw8kp8f"]
+
+[ext_resource type="Script" uid="uid://dsg7nr6brmq5r" path="res://Scripts/nail_base.gd" id="1_hy84x"]
+[ext_resource type="Script" uid="uid://5i42bqck70ta" path="res://Scripts/Components/movement_component.gd" id="1_ybgmx"]
+[ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="3_vwb8y"]
+[ext_resource type="Script" uid="uid://c1vp0ojjvaby1" path="res://addons/godot_state_charts/parallel_state.gd" id="4_6p00i"]
+[ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="5_qm2n7"]
+[ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="6_1mm27"]
+[ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="7_2tk5x"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_nupcq"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_ybgmx"]
+inner_radius = 0.585
+outer_radius = 0.102
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nupcq"]
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_nupcq"]
+
+[node name="Nail" type="CharacterBody3D" unique_id=562728891]
+script = ExtResource("1_hy84x")
+
+[node name="Meshes" type="Node3D" parent="." unique_id=485534478]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0.49999994, 0)
+
+[node name="Body" type="MeshInstance3D" parent="Meshes" unique_id=610660525]
+mesh = SubResource("CapsuleMesh_nupcq")
+
+[node name="Hat" type="MeshInstance3D" parent="Meshes" unique_id=907459243]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("TorusMesh_ybgmx")
+surface_material_override/0 = SubResource("StandardMaterial3D_nupcq")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1314014787]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0.49999994, 0)
+shape = SubResource("CapsuleShape3D_nupcq")
+
+[node name="Components" type="Node" parent="." unique_id=322761774]
+
+[node name="MovementComponent" type="Node" parent="Components" unique_id=119478840]
+unique_name_in_owner = true
+script = ExtResource("1_ybgmx")
+metadata/_custom_type_script = "uid://5i42bqck70ta"
+
+[node name="StateChart" type="Node" parent="." unique_id=411286703]
+script = ExtResource("3_vwb8y")
+metadata/_custom_type_script = "uid://couw105c3bde4"
+
+[node name="Root" type="Node" parent="StateChart" unique_id=1479470343]
+script = ExtResource("4_6p00i")
+
+[node name="Movement" type="Node" parent="StateChart/Root" unique_id=1321156785]
+script = ExtResource("5_qm2n7")
+initial_state = NodePath("Grounded")
+
+[node name="Grounded" type="Node" parent="StateChart/Root/Movement" unique_id=221245287]
+script = ExtResource("5_qm2n7")
+initial_state = NodePath("Idle")
+
+[node name="Idle" type="Node" parent="StateChart/Root/Movement/Grounded" unique_id=1771084055]
+script = ExtResource("6_1mm27")
+
+[node name="OnMoving" type="Node" parent="StateChart/Root/Movement/Grounded/Idle" unique_id=178265820]
+script = ExtResource("7_2tk5x")
+to = NodePath("../../Moving")
+event = &"onMoving"
+delay_in_seconds = "0.0"
+
+[node name="Moving" type="Node" parent="StateChart/Root/Movement/Grounded" unique_id=543365154]
+script = ExtResource("5_qm2n7")
+initial_state = NodePath("Walking")
+
+[node name="Walking" type="Node" parent="StateChart/Root/Movement/Grounded/Moving" unique_id=2093601872]
+script = ExtResource("6_1mm27")
+
+[node name="Sprinting" type="Node" parent="StateChart/Root/Movement/Grounded/Moving" unique_id=1895032850]
+script = ExtResource("6_1mm27")
+
+[node name="OnSprinting" type="Node" parent="StateChart/Root/Movement/Grounded/Moving" unique_id=473031628]
+script = ExtResource("7_2tk5x")
+to = NodePath("../Sprinting")
+event = &"onSprinting"
+delay_in_seconds = "0.0"
+
+[node name="OnWalking" type="Node" parent="StateChart/Root/Movement/Grounded/Moving" unique_id=989240906]
+script = ExtResource("7_2tk5x")
+to = NodePath("../Walking")
+event = &"onWalking"
+delay_in_seconds = "0.0"
+
+[node name="OnIdle" type="Node" parent="StateChart/Root/Movement/Grounded/Moving" unique_id=8427612]
+script = ExtResource("7_2tk5x")
+to = NodePath("../../Idle")
+event = &"onIdle"
+delay_in_seconds = "0.0"
+
+[node name="OnAirborne" type="Node" parent="StateChart/Root/Movement/Grounded" unique_id=1157584172]
+script = ExtResource("7_2tk5x")
+to = NodePath("../../Airborne")
+event = &"onAirborne"
+delay_in_seconds = "0.0"
+
+[node name="Airborne" type="Node" parent="StateChart/Root/Movement" unique_id=1754927489]
+script = ExtResource("5_qm2n7")
+initial_state = NodePath("Jumping")
+
+[node name="Jumping" type="Node" parent="StateChart/Root/Movement/Airborne" unique_id=773913417]
+script = ExtResource("6_1mm27")
+
+[node name="OnGrounded" type="Node" parent="StateChart/Root/Movement/Airborne" unique_id=1741659281]
+script = ExtResource("7_2tk5x")
+to = NodePath("../../Grounded")
+event = &"onGrounded"
+delay_in_seconds = "0.0"

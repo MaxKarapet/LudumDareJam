@@ -1,0 +1,29 @@
+[remap]
+
+importer="3d_texture"
+type="CompressedTexture3D"
+uid="uid://cbkjt6kn1brqq"
+path.bptc="res://.godot/imported/NeutralLUT.png-ba010a6177af142320e2db70213e7055.bptc.ctex3d"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+
+[deps]
+
+source_file="res://Assets/Environment/NeutralLUT.png"
+dest_files=["res://.godot/imported/NeutralLUT.png-ba010a6177af142320e2db70213e7055.bptc.ctex3d"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=true
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+slices/horizontal=33
+slices/vertical=1

@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://7kryvupqsmv7"]
+
+[ext_resource type="Shader" uid="uid://d12gbp6gq8efp" path="res://addons/new_shader.tres" id="1_mk2tn"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_mk2tn")
