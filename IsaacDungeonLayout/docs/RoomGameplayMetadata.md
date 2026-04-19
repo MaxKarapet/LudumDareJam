@@ -1,6 +1,8 @@
 # Метаданные комнат (`RoomGameplayMetadata`)
 
-После успешной генерации и валидации подземелья `DungeonGenerator` вызывает `DungeonLayoutEnricher.Enrich`: для каждой `PlacedRoom` заполняется свойство `GameplayMetadata`.
+Часть библиотеки **IsaacDungeonLayout**; обзор: [Documentation.md](../Documentation.md), быстрый старт: [GettingStarted.md](GettingStarted.md).
+
+После успешной генерации (`Generate`) или shuffle (`Shuffle`) и валидации `DungeonGenerator` вызывает `DungeonLayoutEnricher.Enrich`: для каждой `PlacedRoom` заполняется свойство `GameplayMetadata`.
 
 Граф — это **комнаты как вершины**, рёбра — **соседство по сетке** (4-связность), расстояния считаются в **количестве рёбер** (BFS).
 
@@ -36,9 +38,10 @@ if node.has_meta("gameplay_dist_from_start"):
 Из каталога `IsaacDungeonLayout`:
 
 ```bash
-dotnet run -- test      # smoke + проверки метаданных
+dotnet run -- test      # smoke + metadata + shuffle
 dotnet run -- smoke
 dotnet run -- metadata
+dotnet run -- shuffle
 dotnet run -- stress
 dotnet run -- helper
 ```

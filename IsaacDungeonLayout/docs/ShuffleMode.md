@@ -1,5 +1,7 @@
 # Режим перестановки (`Shuffle`)
 
+Общая документация: [Documentation.md](../Documentation.md) · быстрый старт: [GettingStarted.md](GettingStarted.md) · Godot: [GodotIntegration.md](../GodotIntegration.md).
+
 Генерация «с нуля» ([`DungeonGenerator.Generate`](Generation/DungeonGenerator.cs)) строит топологию через [`TopologyPlanner`](Generation/TopologyPlanner.cs) и проверяет её через [`DungeonValidator.ValidateGenerated`](Validation/DungeonValidator.cs) (листья полимино, maximin mob и т.д.).
 
 Режим **shuffle** другой:

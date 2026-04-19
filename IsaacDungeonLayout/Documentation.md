@@ -1,131 +1,154 @@
-# IsaacDungeonLayout: Engineering Documentation
+# IsaacDungeonLayout — документация
 
-## 1. Overview
-Этот модуль представляет собой чистый C# генератор подземелий в стиле *The Binding of Isaac*. 
-- **Данные на входе:** Набор шаблонов комнат (`RoomTemplate`), количество базовых комнат (`n`), количество комнат с врагами (`m`), и сид `Seed`.
-- **Логика работы:** Генератор сначала строит граф связности на двумерной сетке (алгоритм роста полимино), гарантируя связность, степени вершин и расстояния (maximin эвристика), а затем пытается "натянуть" на этот граф шаблоны из заданного набора с учетом их поворотов.
-- **Данные на выходе:** Объект `DungeonLayout`, содержащий список `PlacedRoom` — с указанием точной `GridPosition`, примененого шаблона, типа комнаты, реальных соседей и числа необходимых поворотов на 90°.
+Чистая **C#**-библиотека генерации подземелий в духе *The Binding of Isaac*: топология на сетке `Int2`, шаблоны комнат с поворотами, валидация инвариантов, обогащение **игровыми метаданными** и второй режим **shuffle** (перестановка комнат на заданном графе с максимизацией дистанции Start→End).
 
-Режим **перестановки** по уже собранному графу клеток: [`DungeonGenerator.Shuffle`](Generation/DungeonGenerator.cs), контракт и отличия валидации — в [docs/ShuffleMode.md](docs/ShuffleMode.md).
+**Без зависимости от Godot** в коде алгоритмов; интеграция в движок описана отдельно.
 
 ---
 
-## 2. Project Structure
-Проект реструктурирован в следующие смысловые папки:
+## Оглавление
 
-- **`/Core/`** — фундаментальные типы данных. Содержит модели (например, `Int2`, `PlacedRoom`, `RoomTemplate`), перечисления (`Direction`, `RoomType`), константы сетки (`GridSteps`) и исключения. Эти файлы не зависят от тяжелых алгоритмов генерации.
-- **`/Generation/`** — "сердце" генератора. Здесь лежат `DungeonGenerator` (координатор), `TopologyPlanner` (рост полимино), `TemplateMatcher` (подбор шаблона) и `SpecialRoomScoring`.
-- **`/Validation/`** — `DungeonValidator`. Жесткий механизм гарантии инвариантов графа.
-- **`/Debug/`** — вспомогательные утилиты вроде вывод в консоль (`LayoutDebugFormatter`).
-- **`/Demo/`** — фабрики дефолтных шаблонов (dummy data) для старта `DemoTemplates`.
-- **`/Tests/`** — изолированные скрипты проверок (`DungeonSmokeTests`, `DungeonStressTests`, `HelperTests`).
-
----
-
-## 3. Architecture
-
-### `DungeonGenerator`
-- **Ответственность:** Оркестрация процесса. Вызов планировщика, затем вызов подборщика шаблонов. Зацикливает попытки, пока не уложится в `MaxAttempts`.
-- **Методы:** `Generate(DungeonGenerationConfig)`, `GenerateOrThrow(DungeonGenerationConfig)`
-- **Зависит от:** `TopologyPlanner`, `TemplateMatcher`, `DungeonValidator`.
-
-### `TopologyPlanner`
-- **Ответственность:** Генерация математически корректного скелета. Сначала строит смежную массу базовых комнат (Backbone полимино), затем находит в ней листья и прикрепляет к ним специальные комнаты.
-- **Зависит от:** `GridSteps`, `LeafSlotGeometry`.
-
-### `GridBfs`
-- **Ответственность:** Быстрый поиск в ширину на графе (расчет дистанций, проверки связности). Оптимизирован с заданным максимумом шагов для предотвращения зацикливаний.
-
-### `TemplateMatcher` & `RotationHelper`
-- **Ответственность:** Берет логический узел из сгенерированной `TopologyPlan`, смотрит на наличие соседей по направлениям N, S, W, E. Из списка шаблонов выбирает тот, который (будучи повернутым от 0 до 3 раз на 90°) совпадет с выданной маской выходов.
-
-### `DungeonValidator`
-- **Ответственность:** Полный повторный пересчет всех свойств готового `DungeonLayout`. Если `Validation` не пройдена, генератор перезапускает попытку. 
+1. [Быстрый старт](docs/GettingStarted.md) — сборка, тесты, первые вызовы API  
+2. [Два режима работы](#2-два-режима-работы)  
+3. [Структура репозитория](#3-структура-репозитория)  
+4. [Ключевые типы](#4-ключевые-типы)  
+5. [Пайплайны](#5-пайплайны)  
+6. [Валидация и `DungeonLayout.Source`](#6-валидация-и-dungeonlayoutsource)  
+7. [Интеграция в Godot](#7-интеграция-в-godot)  
+8. [Расширение и настройка](#8-расширение-и-настройка)  
+9. [Риски и ограничения](#9-риски-и-ограничения)  
+10. [Связанные документы](#10-связанные-документы)
 
 ---
 
-## 4. Dependency Flow
+## 2. Два режима работы
 
-1. **Вход:** Набор `RoomTemplate` и числа `N`, `M` подаются в `DungeonGenerationConfig`.
-2. **Шаг 1 - Топология (TopologyPlanner):** `Generator` передает сид и данные в планировщик. Планнер создает абстрактную карту `ToplologyPlan` (`Dictionary<Int2, RoomType>`), не зная ничего про конкретные комнаты. 
-3. **Шаг 2 - Шаблоны (TemplateMatcher):** Для каждой клетки `Generator` просит `TemplateMatcher` найти подходящий шаблон и поворот, удовлетворяющий соседям по `TopologyPlan`.
-4. **Шаг 3 - Сборка (PlacedRoom):** Данные упаковываются в `DungeonLayout`.
-5. **Шаг 4 - Валидация (DungeonValidator):** Готовый Layout скармливается на проверку инвариантов.
-6. **Выход:** Если все ок (либо исчерпаны `MaxAttempts`), Layout возвращается в `Program.cs` / Godot Runtime.
+| Режим | Вход | Выход | Валидация |
+|--------|------|--------|-----------|
+| **С нуля** (`Generate`) | [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs): шаблоны, `BaseRoomCount`, `MobRoomCount`, `Seed`, `MaxAttempts` | [`DungeonLayout`](Core/DungeonLayout.cs), `Source = Generated`, заполненная [`DungeonTopologyTrace`](Core/DungeonTopologyTrace.cs) | [`ValidateGenerated`](Validation/DungeonValidator.cs) — включая leaf/maximin инварианты планировщика |
+| **Shuffle** (`Shuffle`) | [`ShuffleDungeonInput`](Core/ShuffleDungeonInput.cs): множество клеток, фиксированный старт, пул [`RoomSlotDescriptor`](Core/RoomSlotDescriptor.cs), каталог шаблонов, `Seed` | Тот же `DungeonLayout`, `Source = Shuffled`, **пустая** топология-трасса | [`ValidateShuffled`](Validation/DungeonValidator.cs); опционально сверка множества клеток с исходным графом |
 
----
+После успеха в обоих режимах вызывается [`DungeonLayoutEnricher.Enrich`](Generation/DungeonLayoutEnricher.cs): у каждой [`PlacedRoom`](Core/PlacedRoom.cs) появляется `GameplayMetadata` (см. [docs/RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md)).
 
-## 5. Generation Algorithm
-
-Пошаговое описание текущего алгоритма генерации:
-1. **Построение Backbone (остова):** Алгоритм начинает в (0,0) и с помощью Random Walk добавляет базовые комнаты так, чтобы они формировали связный граф 4-связности на `n` комнат.
-2. **Определение Leaf-узлов:** На основе остова ищется множество ячеек (`adjacentEmpty`), которые примыкают к графу ровно 1 раз (степень связи 1). Это и есть "отростки" (листья).
-3. **Выбор Start/End:** Выбираются две Leaf-клетки с максимальным `BFS`-расстоянием по остову графа `ShortestPathEdgeCount`. Туда ставятся `RoomType.Start` и `RoomType.End`.
-4. **Выбор Mob-комнат (Maximin):** Оставшиеся `m` Mob-комнат выбираются жадно с помощью максимизации минимального расстояния до уже выбранного пула (Start, End и уже поставленные Mobs). То есть каждая следующая mob-комната ставится туда, где находится дальше всего от остальных.
-5. **Подбор шаблонов (Template Matching):** Алгоритм берёт тип из топологии, запрашивает подходящий `RoomTemplate` и вычисляет его матрицу поворотов (`RotationSteps90`), давая на выходе World-directed стороны.
-6. **Retry Loop:** Весь процесс обернут в цикл до `MaxAttempts` раз на случай проблем или отсутствия шаблонов.
+Подробно про shuffle: [docs/ShuffleMode.md](docs/ShuffleMode.md).  
+Подробно про метаданные: [docs/RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md).
 
 ---
 
-## 6. Invariants
+## 3. Структура репозитория
 
-Система жестко гарантирует (и проверяет в `DungeonValidator.cs`):
-- Обязательно `n` базовых, `m` мобильных, 1 start, 1 end.
-- Весь граф стопроцентно связный (проверяется `GridBfs.IsConnected()`).
-- Комнаты Base имеют от 2 до 4 выходов.
-- Комнаты Special (Start, End, Mob) **обязательно имеют степень 1** (строго конечные точки, тупики).
-- Нет наложений комнат друг на друга (Overlay checking via DataStructures).
-- Выходы совпадают встречно: если комната `A` указывает выходом в `B`, комната `B` обязана указывать выходом в `A`.
-
----
-
-## 7. Extension Points
-
-- **Безопасно расширять:** Новые типы паттернов выходов `DemoTemplates`. Никаких правок в движке не нужно.
-- **Изменение эвристики:** В `SpecialRoomScoring.MaximinAmongAnchors` можно подкрутить вес, чтобы, например, мобы собирались "кучнее" или ближе к старту, изменив математику `score`. Возможна реализация `Boss`-комнат путём добавления константы в `RoomType`.
-- **Что не стоит трогать:** Логика остова `TopologyPlanner` и ротаций `RotationHelper` выверена математически. Вмешательство без тестирования с большой вероятностью нарушит структуру степеней сеток (`GridDegree`).
+| Папка / файл | Назначение |
+|--------------|------------|
+| [`Core/`](Core/) | `Int2`, `RoomTemplate`, `PlacedRoom`, `DungeonLayout`, конфиги, `ShuffleDungeonInput`, `RoomSlotDescriptor`, исключения |
+| [`Generation/`](Generation/) | `DungeonGenerator`, `TopologyPlanner`, `TemplateMatcher`, `DungeonShuffleSolver`, `DungeonLayoutEnricher`, `GridBfs`, … |
+| [`Validation/`](Validation/) | `DungeonValidator` (`ValidateGenerated` / `ValidateShuffled`) |
+| [`Demo/`](Demo/) | [`DemoTemplates`](Demo/DemoTemplates.cs) — набор шаблонов для тестов и прототипов |
+| [`Tests/`](Tests/) | Консольные прогоны без NUnit: smoke, stress, helper, metadata, shuffle |
+| [`docs/`](docs/) | Углублённые заметки: GettingStarted, ShuffleMode, RoomGameplayMetadata |
+| [`Program.cs`](Program.cs) | Точка входа `dotnet run -- …` |
+| [`GodotIntegration.md`](GodotIntegration.md) | Пошаговая интеграция в Godot C# |
 
 ---
 
-## 8. Godot Integration Plan
+## 4. Ключевые типы
 
-Для интеграции в Godot C# модуль потребуется следующее:
+- **`Int2`** — целочисленная пара `(X, Z)` на сетке комнат; в Godot обычно мапится на `(x, 0, z)`.
+- **`RoomTemplate`** — id, [`RoomType`](Core/RoomType.cs), список выходов в **локали шаблона** (кардинальные единичные векторы), до поворота.
+- **`PlacedRoom`** — итог размещения: позиция, тип, `TemplateId`, `RotationSteps90`, `FinalOutsDir` в мировых осях, `ConnectedNeighborPositions`, опционально **`GameplayMetadata`** после enricher.
+- **`DungeonLayout`** — список комнат, `StartPosition` / `EndPosition`, `MobPositions`, `StartEndGraphDistance`, `Topology`, поле **`Source`** (`Generated` | `Shuffled`).
+- **`DungeonGenerationOutcome`** — `Success`, `Result`, `Failure`, `AttemptsUsed`.
 
-```csharp
-// 1. DTO Mapping Mapping
-// Собираете массив Godot Resource (сцен) с выгрузкой в RoomTemplate
-var templates = GetNode("Templates").GetChildren()
-					.Select(c => new RoomTemplate {
-						Id = c.Name,
-						OutsDir = ParseDirs(c.Get("outs_dir").AsVector2IArray())
-					}).ToList();
+Сетевые операции на графе клеток: [`GridBfs`](Generation/GridBfs.cs) — связность, кратчайшие пути, `DistancesFrom`, `MultiSourceMinDistance`, **`CellDegree`**.
 
-// 2. Внутри игры
-var layout = generator.GenerateOrThrow(cfg);
-foreach(var pRoom in layout.Rooms) 
-{
-	// 3. Grid Position -> World Position
-	// Размерность клетки, допустим 20x20
-	var position = new Vector3(pRoom.GridPosition.X * 20, 0, pRoom.GridPosition.Z * 20);
-	
-	// 4. Instantiation & Rotation
-	var scene = LoadSceneById(pRoom.TemplateId).Instantiate<Node3D>();
-	scene.Position = position;
-	// pRoom.RotationSteps90 : шаг 90 градусов (PI/2). Вращаем по Y (в Godot 3D) 
-	// Внимание: В Godot -Z это 'Вперед', проверьте направление ротации (CW / CCW)
-	scene.Rotation = new Vector3(0, -pRoom.RotationSteps90 * (Mathf.Pi / 2f), 0);
-	
-	AddChild(scene);
-}
+---
+
+## 5. Пайплайны
+
+### 5.1. Генерация с нуля
+
+```mermaid
+flowchart LR
+  cfg[DungeonGenerationConfig]
+  tp[TopologyPlanner]
+  tm[TemplateMatcher per cell]
+  val[ValidateGenerated]
+  en[DungeonLayoutEnricher]
+  cfg --> tp --> tm --> val --> en
 ```
 
-**Особое внимание (Crucial check):** 
-Координатная система! `Int2(x, z)` алгоритма использует стандартное направление. У Godot `X` - право, `Z` - на себя (вниз по экрану). Вам нужно один раз провалидировать соответствие (направления `GridSteps.Cardinal`) и `RotationSteps90` с поведением `Basis` в Godot.
+1. **`TopologyPlanner`** строит связный полимино баз и вешает Start/End/Mob по правилам трассировки (листья, maximin для мобов).  
+2. **`DungeonGenerator.TryAssignTemplates`** подбирает шаблон и поворот под маску соседей.  
+3. **`ValidateGenerated`** проверяет граф, встречные выходы, счётчики типов и **инварианты топологии** (`ValidateTopologyInvariants`).  
+4. **`DungeonLayoutEnricher`** добавляет `GameplayMetadata`.
+
+### 5.2. Shuffle
+
+```mermaid
+flowchart LR
+  inp[ShuffleDungeonInput]
+  sol[DungeonShuffleSolver]
+  val2[ValidateShuffled]
+  en2[DungeonLayoutEnricher]
+  inp --> sol --> val2 --> en2
+```
+
+1. Валидация входа (`ShuffleDungeonInput.Validate`) — связность, ровно один Start/End в слотах, согласование multiset степеней слотов и клеток.  
+2. Кандидаты в End — клетки степени 1 (не старт), сортировка по **убыванию BFS** от фиксированного старта, затем детерминированный **`Seed`** tie-break.  
+3. Backtracking по остальным клеткам с порядком, зависящим от `Seed`.  
+4. **`ValidateShuffled`**; при вызове из солвера передаётся исходный `OccupiedCells` для проверки множества позиций.  
+5. Enricher — как в режиме 5.1.
 
 ---
 
-## 9. Risks / Edge Cases & Hostile Review Considerations
+## 6. Валидация и `DungeonLayout.Source`
 
-- **(Риск) Нехватка "T"-образных шаблонов:** Если вы создадите пул шаблонов **БЕЗ** шаблонов для базовых комнат с 3 или 4 выходами, но установите сложный сид с `N > 10`, `TemplateMatcher` провалится (`TryMatch` вернет `false`), и система будет бесконечно долбиться в `MaxAttempts` и в итоге выстрелит ошибкой. *Убедитесь, что у вас есть шаблоны на все базовые комбинации граней сетки.*
-- **(Невозможность размещения тупиков):** Параметр `M` (Mob Rooms). Алгоритм ищет Leaf-узлы. Если задано `N=5`, то физически у полимино из 5 блоков не может быть больше ~11 периметровых тупиковых узлов (обычно 4-6). Если передать `M = 50`, `Validate` не пройдет, так как мест нет. В коде это уже перехватывается, но в UI Godot это нужно будет ограничить.
-- **(Высокая связность):** Остов строится random walk'ом. Иногда граф получается очень "линейным", а иногда плотным "комком". При плотном комке дистанция Start-End будет короткой, не смотря на maximin. Вы можете избежать этого, подкрутив эвристики рандомного выбора в `TopologyPlanner`.
+- **`Generated`** — только для результатов `Generate` с непустой осмысленной `DungeonTopologyTrace`. Публичный API: **`DungeonValidator.ValidateGenerated(layout, cfg)`** или **`ValidateOrThrow`** (то же самое).
+- **`Shuffled`** — режим shuffle или **ручная** сборка layout без инвариантов планировщика. Проверка: **`ValidateShuffled(layout, expect, expectedOccupiedCells?)`**.
+
+Если вручную собрать `DungeonLayout` с дефолтным `Source == Generated` и пустой/фиктивной трассировкой, **`ValidateGenerated` упадёт** на проверке топологии — это ожидаемо: выставьте `Source = Shuffled` и вызывайте `ValidateShuffled` с корректным `ShuffleTypeExpectation`.
+
+---
+
+## 7. Интеграция в Godot
+
+Полная пошаговая инструкция: **[GodotIntegration.md](GodotIntegration.md)** — сцены с `RoomScene`, сборка `List<RoomTemplate>`, вызов `Generate`, спавн, повороты, оси.
+
+Дополнительно:
+
+- После генерации на ноды комнат можно повесить **метаданные** (см. [RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md)) — в примере через `SetMeta` в C#; из GDScript — `get_meta`.
+- **Shuffle** из Godot: собрать `HashSet<Int2>` занятых клеток, список `RoomSlotDescriptor` из игровых объектов (тип + опционально `RequiredTemplateId`), тот же каталог шаблонов → `generator.Shuffle(input)`.
+
+Подключение **ProjectReference** на этот `.csproj` в основном Godot-проекте — в [GodotIntegration.md](GodotIntegration.md), раздел про `.csproj`.
+
+---
+
+## 8. Расширение и настройка
+
+- **Новые шаблоны** — добавляйте `RoomTemplate` в пул; для базы нужны варианты на **2, 3 и 4** выхода, иначе `TemplateMatcher` часто провалится на развилках.
+- **Эвристика мобов** — [`SpecialRoomScoring`](Generation/SpecialRoomScoring.cs); изменения влияют на соответствие `ValidateTopologyInvariants` (порядок mob в трассировке).
+- **Новый `RoomType`** — потребует правок в enum, валидаторе степеней, шаблонах и, при необходимости, в enricher / Godot-маппинге.
+- **Shuffle** — сложность растёт с числом комнат; при больших данжах имеет смысл лимит по времени/попыткам на уровне игры (отдельная задача).
+
+---
+
+## 9. Риски и ограничения
+
+- Недостаточно шаблонов для степени узла → многократные неудачи до исчерпания `MaxAttempts`.
+- Слишком большой **`MobRoomCount`** относительно числа листьевых слотов — генерация не найдёт валидный layout.
+- **Shuffle**: worst-case перебор может быть тяжёлым на большом графе; `Seed` даёт воспроизводимый порядок ветвей, но не гарантирует «другой» результат при каждом изменении сида.
+- Консольный проект с **`OutputType` Exe** — удобно для тестов; для переиспользования как DLL см. [GettingStarted.md](docs/GettingStarted.md).
+
+---
+
+## 10. Связанные документы
+
+| Документ | Содержание |
+|----------|------------|
+| [docs/GettingStarted.md](docs/GettingStarted.md) | Сборка, тесты, первые примеры кода, ProjectReference |
+| [GodotIntegration.md](GodotIntegration.md) | Сцены, LevelGenerator, `.csproj`, shuffle и метаданные |
+| [docs/ShuffleMode.md](docs/ShuffleMode.md) | Контракт shuffle, `Seed`, валидация |
+| [docs/RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md) | Поля DTO, ключи `SetMeta`, тесты |
+
+---
+
+*Версия документа: по состоянию репозитория с режимами Generate / Shuffle, enricher и консольными тестами.*
