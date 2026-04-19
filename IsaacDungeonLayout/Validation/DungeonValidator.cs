@@ -4,13 +4,24 @@ public static class DungeonValidator
 {
     public static void ValidateOrThrow(DungeonLayout layout, DungeonGenerationConfig cfg)
     {
-        var err = Validate(layout, cfg);
+        var err = ValidateGenerated(layout, cfg);
         if (err is not null)
             throw new DungeonLayoutValidationException(err);
     }
 
-    public static string? Validate(DungeonLayout layout, DungeonGenerationConfig cfg)
+    public static void ValidateShuffledOrThrow(DungeonLayout layout, ShuffleTypeExpectation expect, HashSet<Int2>? expectedOccupiedCells = null)
     {
+        var err = ValidateShuffled(layout, expect, expectedOccupiedCells);
+        if (err is not null)
+            throw new DungeonLayoutValidationException(err);
+    }
+
+    /// <summary>Layout из <see cref="DungeonGenerator.Generate"/> с трассировкой планировщика. Требует <see cref="DungeonLayout.Source"/> == <see cref="DungeonLayoutSource.Generated"/>; ручной layout без трассировки планировщика помечайте <see cref="DungeonLayoutSource.Shuffled"/> и вызывайте <see cref="ValidateShuffled"/>.</summary>
+    public static string? ValidateGenerated(DungeonLayout layout, DungeonGenerationConfig cfg)
+    {
+        if (layout.Source != DungeonLayoutSource.Generated)
+            return "Для layout.Source == Shuffled вызывайте ValidateShuffled.";
+
         var rooms = layout.Rooms;
         int expectedTotal = cfg.BaseRoomCount + cfg.MobRoomCount + 2;
         if (rooms.Count != expectedTotal)
@@ -77,6 +88,111 @@ public static class DungeonValidator
         return null;
     }
 
+    /// <summary>Layout из режима shuffle: без инвариантов leaf/maximin планировщика.</summary>
+    /// <param name="expectedOccupiedCells">Если задано, множество позиций комнат должно совпасть с этим графом.</param>
+    public static string? ValidateShuffled(
+        DungeonLayout layout,
+        ShuffleTypeExpectation expect,
+        HashSet<Int2>? expectedOccupiedCells = null)
+    {
+        if (layout.Source != DungeonLayoutSource.Shuffled)
+            return "Для сгенерированного layout вызывайте ValidateGenerated.";
+
+        var rooms = layout.Rooms;
+        int expectedTotal = expect.BaseCount + expect.MobCount + 2;
+        if (rooms.Count != expectedTotal)
+            return $"Ожидалось {expectedTotal} комнат, получено {rooms.Count}.";
+
+        var byPos = new Dictionary<Int2, PlacedRoom>();
+        foreach (var r in rooms)
+        {
+            if (byPos.ContainsKey(r.GridPosition))
+                return $"Дубль позиции {r.GridPosition}.";
+            byPos[r.GridPosition] = r;
+        }
+
+        if (!ValidateRoomTypeCountsShuffled(rooms, expect, out var countErr))
+            return countErr;
+
+        var occupied = new HashSet<Int2>(byPos.Keys);
+        if (expectedOccupiedCells is not null)
+        {
+            if (occupied.Count != expectedOccupiedCells.Count)
+                return $"Число клеток в layout ({occupied.Count}) не совпадает с ожидаемым графом ({expectedOccupiedCells.Count}).";
+            if (!occupied.SetEquals(expectedOccupiedCells))
+                return "Множество позиций комнат не совпадает с ожидаемым графом shuffle.";
+        }
+
+        if (!GridBfs.IsConnected(occupied))
+            return "Граф комнат несвязный.";
+
+        foreach (var r in rooms)
+        {
+            var err = ValidateRoomExitsAndDegree(r, occupied);
+            if (err is not null)
+                return err;
+        }
+
+        foreach (var r in rooms)
+        {
+            foreach (var d in r.FinalOutsDir)
+            {
+                var q = r.GridPosition + d;
+                var other = byPos[q];
+                var back = r.GridPosition - q;
+                if (!other.FinalOutsDir.Contains(back))
+                    return $"Нет встречного выхода {r.GridPosition}->{q}.";
+            }
+        }
+
+        var start = rooms.Single(x => x.RoomType == RoomType.Start);
+        var end = rooms.Single(x => x.RoomType == RoomType.End);
+        int dist = GridBfs.ShortestPathEdgeCount(occupied, start.GridPosition, end.GridPosition);
+        if (dist != layout.StartEndGraphDistance)
+            return $"Несовпадение дистанции start-end: в отчёте {layout.StartEndGraphDistance}, по BFS {dist}.";
+        if (dist < 0)
+            return "Start и End не соединены.";
+
+        if (!start.GridPosition.Equals(layout.StartPosition))
+            return "StartPosition в результате не совпадает с комнатой Start.";
+        if (!end.GridPosition.Equals(layout.EndPosition))
+            return "EndPosition в результате не совпадает с комнатой End.";
+
+        var mobSet = new HashSet<Int2>(layout.MobPositions);
+        foreach (var r in rooms.Where(x => x.RoomType == RoomType.Mob))
+        {
+            if (!mobSet.Contains(r.GridPosition))
+                return $"Mob {r.GridPosition} отсутствует в MobPositions.";
+        }
+
+        return null;
+    }
+
+    private static bool ValidateRoomTypeCountsShuffled(
+        IReadOnlyList<PlacedRoom> rooms,
+        ShuffleTypeExpectation expect,
+        out string? error)
+    {
+        int b = 0, m = 0, s = 0, e = 0;
+        foreach (var r in rooms)
+        {
+            switch (r.RoomType)
+            {
+                case RoomType.Base: b++; break;
+                case RoomType.Mob: m++; break;
+                case RoomType.Start: s++; break;
+                case RoomType.End: e++; break;
+            }
+        }
+
+        if (b != expect.BaseCount) { error = $"Базовых комнат {b}, ожидалось {expect.BaseCount}."; return false; }
+        if (m != expect.MobCount) { error = $"Mob: {m}, ожидалось {expect.MobCount}."; return false; }
+        if (s != 1) { error = $"Start: {s}, ожидалось 1."; return false; }
+        if (e != 1) { error = $"End: {e}, ожидалось 1."; return false; }
+        error = null;
+        return true;
+    }
+
     private static bool ValidateRoomTypeCounts(
         IReadOnlyList<PlacedRoom> rooms,
         DungeonGenerationConfig cfg,
@@ -121,12 +237,7 @@ public static class DungeonValidator
                 return $"Комната {r.GridPosition}: в connections лишний сосед {c}.";
         }
 
-        int gridDeg = 0;
-        foreach (var step in GridSteps.Cardinal)
-        {
-            if (occupied.Contains(r.GridPosition + step))
-                gridDeg++;
-        }
+        int gridDeg = GridBfs.CellDegree(r.GridPosition, occupied);
 
         if (gridDeg != r.FinalOutsDir.Count)
             return $"Комната {r.GridPosition}: степень сетки {gridDeg} != числу выходов {r.FinalOutsDir.Count}.";

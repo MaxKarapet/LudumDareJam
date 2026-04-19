@@ -10,6 +10,12 @@ public sealed class DungeonLayout
     /// <summary>Снимок топологии для проверки инвариантов (max leaf-пара, maximin mob).</summary>
     public required DungeonTopologyTrace Topology { get; init; }
 
+    /// <summary>
+    /// <see cref="DungeonLayoutSource.Generated"/> — результат <see cref="DungeonGenerator.Generate"/> с валидной <see cref="DungeonTopologyTrace"/>.
+    /// <see cref="DungeonLayoutSource.Shuffled"/> — режим перестановки или ручная сборка без инвариантов планировщика; для проверки используйте <see cref="DungeonValidator.ValidateShuffled"/>.
+    /// </summary>
+    public DungeonLayoutSource Source { get; init; } = DungeonLayoutSource.Generated;
+
     public override string ToString() =>
         $"Rooms={Rooms.Count}, SE_dist={StartEndGraphDistance}, Start={StartPosition}, End={EndPosition}, Mobs={MobPositions.Count}";
 }

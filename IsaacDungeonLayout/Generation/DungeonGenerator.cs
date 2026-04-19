@@ -46,9 +46,10 @@ public sealed class DungeonGenerator
                 MobPositions = mobSorted,
                 StartEndGraphDistance = dist,
                 Topology = trace,
+                Source = DungeonLayoutSource.Generated,
             };
 
-            var err = DungeonValidator.Validate(result, cfg);
+            var err = DungeonValidator.ValidateGenerated(result, cfg);
             if (err is not null)
             {
                 cfg.DiagnosticLog?.Invoke($"attempt {attempt + 1}: валидация — {err}");
@@ -64,6 +65,10 @@ public sealed class DungeonGenerator
             $"Не удалось сгенерировать валидный layout за {cfg.MaxAttempts} попыток (топология, шаблоны или инварианты).",
             cfg.MaxAttempts);
     }
+
+    /// <summary>Режим перестановки: готовый граф клеток, фиксированный старт, пул слотов; финиш максимально далеко по BFS.</summary>
+    public DungeonGenerationOutcome Shuffle(ShuffleDungeonInput input) =>
+        DungeonShuffleSolver.TryShuffle(input);
 
     public DungeonLayout GenerateOrThrow(DungeonGenerationConfig cfg)
     {

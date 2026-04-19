@@ -29,6 +29,22 @@ public static class TemplateMatcher
         return false;
     }
 
+    /// <summary>Все пары (шаблон, поворот), подходящие под множество мировых направлений к соседям.</summary>
+    public static IEnumerable<(RoomTemplate Template, int RotationSteps90)> EnumerateMatchesForDirections(
+        IReadOnlyList<RoomTemplate> templates,
+        HashSet<Int2> requiredWorldDirs)
+    {
+        foreach (var t in templates.OrderBy(x => x.Id, StringComparer.Ordinal))
+        {
+            for (int r = 0; r < GridSteps.QuarterTurns; r++)
+            {
+                var rotated = RotationHelper.RotateDirections(t.OutsDir, r);
+                if (SetEquals(rotated, requiredWorldDirs))
+                    yield return (t, r);
+            }
+        }
+    }
+
     public static HashSet<Int2> RequiredDirectionsFromNeighbors(Int2 pos, HashSet<Int2> allCells)
     {
         var set = new HashSet<Int2>();

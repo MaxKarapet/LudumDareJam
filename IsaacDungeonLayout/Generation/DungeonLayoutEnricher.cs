@@ -62,6 +62,7 @@ public static class DungeonLayoutEnricher
             MobPositions = layout.MobPositions,
             StartEndGraphDistance = layout.StartEndGraphDistance,
             Topology = layout.Topology,
+            Source = layout.Source,
         };
     }
 }

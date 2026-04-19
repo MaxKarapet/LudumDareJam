@@ -36,6 +36,10 @@ public static class HelperTests
             var distMob = GridBfs.MultiSourceMinDistance(line, new[] { new Int2(2, 0) });
             Assert(distMob[new Int2(0, 0)] == 2, "MultiSource до правого конца");
 
+            Assert(GridBfs.CellDegree(new Int2(0, 0), line) == 1, "CellDegree конец линии");
+            Assert(GridBfs.CellDegree(new Int2(1, 0), line) == 2, "CellDegree середина линии");
+            Assert(GridBfs.CellDegree(new Int2(1, 1), set) == 2, "CellDegree внутри 2x2");
+
             // 3. Leaf finding
             var simplePolyomino = new HashSet<Int2> { new Int2(0,0), new Int2(1,0), new Int2(0,1) };
             var leaves = new HashSet<Int2>(LeafSlotGeometry.EnumerateLeafSlots(simplePolyomino));

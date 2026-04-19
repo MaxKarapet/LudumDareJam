@@ -14,6 +14,9 @@ switch (mode)
     case "metadata":
         Environment.Exit(MetadataEnrichmentTests.Run());
         break;
+    case "shuffle":
+        Environment.Exit(ShuffleDungeonTests.Run());
+        break;
     case "smoke":
         Environment.Exit(DungeonSmokeTests.Run());
         break;
@@ -24,11 +27,13 @@ switch (mode)
         if (smoke != 0)
             Environment.Exit(smoke);
         int meta = MetadataEnrichmentTests.Run();
-        Environment.Exit(meta);
+        if (meta != 0)
+            Environment.Exit(meta);
+        Environment.Exit(ShuffleDungeonTests.Run());
         break;
     }
     default:
-        Console.WriteLine("Использование: dotnet run -- [test|full|smoke|stress|helper|metadata]");
+        Console.WriteLine("Использование: dotnet run -- [test|full|smoke|stress|helper|metadata|shuffle]");
         Environment.Exit(DungeonSmokeTests.Run());
         break;
 }

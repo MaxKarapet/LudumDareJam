@@ -65,6 +65,19 @@ public static class GridBfs
         return seen.Count == cells.Count;
     }
 
+    /// <summary>Число соседей клетки <paramref name="p"/> внутри <paramref name="occupied"/> (степень в подграфе сетки).</summary>
+    public static int CellDegree(Int2 p, HashSet<Int2> occupied)
+    {
+        int n = 0;
+        foreach (var d in GridSteps.Cardinal)
+        {
+            if (occupied.Contains(p + d))
+                n++;
+        }
+
+        return n;
+    }
+
     /// <summary>Кратчайшие расстояния от <paramref name="source"/> до всех достижимых вершин (в рёбрах).</summary>
     public static Dictionary<Int2, int> DistancesFrom(HashSet<Int2> vertices, Int2 source)
     {
