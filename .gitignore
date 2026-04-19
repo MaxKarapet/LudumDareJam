@@ -1,0 +1,8 @@
+# .NET (IsaacDungeonLayout)
+IsaacDungeonLayout/bin/
+IsaacDungeonLayout/obj/
+IsaacDungeonLayout/.vs/
+*.csproj.user
+
+# OS
+.DS_Store
