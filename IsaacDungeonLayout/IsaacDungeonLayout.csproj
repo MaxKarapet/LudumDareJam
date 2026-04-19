@@ -8,4 +8,9 @@
     <RootNamespace>IsaacDungeonLayout</RootNamespace>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
+  <!-- Godot-скрипты собираются вместе с игрой (Godot.NET.Sdk); в консольной сборке библиотеки Godot нет. -->
+  <ItemGroup>
+    <Compile Remove="LevelGenerator.cs" />
+    <Compile Remove="RoomScene.cs" />
+  </ItemGroup>
 </Project>

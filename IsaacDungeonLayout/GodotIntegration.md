@@ -53,7 +53,7 @@ public partial class RoomScene : Node3D
 
 ## 3. Сборка `RoomTemplate` из сцен
 
-Типичный фрагмент (как в прототипе `LevelGenerator`):
+В [`LevelGenerator`](LevelGenerator.cs) это сведено в `TryBuildDeckFromRoomScenes`: уникальный каталог по `instance.Name` + словарь `TemplateUsageCapsById` (сколько раз каждый `Id` встречается в `RoomScenes`). Ниже — тот же цикл «вручную» для кастомного кода:
 
 ```csharp
 var templates = new List<RoomTemplate>();
@@ -85,15 +85,22 @@ foreach (var scene in RoomScenes)
 
 ## 4. Генерация с нуля и спавн
 
+Размер данжа и «сколько раз какая сцена» задаются **мультимножеством** `RoomScenes` в [`LevelGenerator`](LevelGenerator.cs): каждый элемент массива — один экземпляр в колоде (одинаковые сцены с тем же корневым `Name` дают несколько использований одного `RoomTemplate.Id`). `BaseRoomCount` / `MobRoomCount` в конфиг считаются из числа сцен с типами `base` / `mob`; в массиве должно быть **ровно одно** `start` и **ровно одно** `end`.
+
+Чтобы генератор не подбирал шаблоны «сколько угодно раз» из каталога, передайте лимиты:
+
 ```csharp
+var catalog = /* уникальные RoomTemplate по Id */;
+var caps = new Dictionary<string, int>(StringComparer.Ordinal) { ["room_a"] = 2, ["start"] = 1, ... }; // сумма = число комнат
 var config = new DungeonGenerationConfig
 {
-    Templates = templates,
-    BaseRoomCount = 15,
-    MobRoomCount = 4,
+    Templates = catalog,
+    BaseRoomCount = baseFromDeck,
+    MobRoomCount = mobFromDeck,
     Seed = 42,
-    MaxAttempts = 200,
+    MaxAttempts = 500,
     DiagnosticLog = GD.Print,
+    TemplateUsageCapsById = caps,
 };
 
 var generator = new DungeonGenerator();
@@ -143,6 +150,19 @@ foreach (var room in layout.Rooms)
 
 ## 6. Режим Shuffle из Godot
 
+### Что такое `OccupiedCells`
+
+Это **множество вершин графа комнат** в дискретной сетке: каждая клетка `Int2(X, Z)`, где уже стоит ровно одна комната данжа — те же координаты, что потом попадут в `PlacedRoom.GridPosition`. Это не «занято ли место для коллизий» и не пиксели: шаг сетки вы задаёте сами (в прототипе совпадает с тем, как вы переводите `GridPosition` в `Position` при спавне).
+
+Откуда брать значения:
+
+- После **`Generate`**: `new HashSet<Int2>(layout.Rooms.Select(r => r.GridPosition))`.
+- Из сцены Godot: те же индексы, что вы получаете из `room.Position` обратным преобразованием, например `Round(Position.X / cellSize)` и `Round(Position.Z / cellSize)` — так сделано в [`LevelGenerator.TryShuffleCurrentLayout`](LevelGenerator.cs).
+
+Число элементов `OccupiedCells` должно совпадать с числом слотов; граф по 4-соседству должен быть связным (см. `ShuffleDungeonInput.Validate`).
+
+### Ручная сборка входа
+
 1. Соберите **`HashSet<Int2>`** всех занятых клеток данжа (в той же сетке, что и при генерации).
 2. Задайте **`StartPosition`** — клетка старта игрока.
 3. Постройте **`List<RoomSlotDescriptor>`**: по одному слоту на клетку, ровно один `RoomType.Start`, один `End`, остальные `Base`/`Mob` так, чтобы **число слотов степени 1** (не-Base) совпало с числом клеток сетки со степенью 1 (см. [ShuffleMode.md](docs/ShuffleMode.md)).
@@ -163,6 +183,23 @@ var outcome = generator.Shuffle(input);
 ```
 
 Проверка вручную: `DungeonValidator.ValidateShuffledOrThrow(layout, ShuffleTypeExpectation.FromSlots(slots), occupiedFromGame)`.
+
+### Готовый вызов из `LevelGenerator`
+
+Если комнаты уже размещены как потомки с корнем [`RoomScene`](LevelGenerator.cs) (как после `SpawnRooms` в том же примере), shuffle и возврат `outcome` уже обёрнуты:
+
+```csharp
+var outcome = levelGenerator.TryShuffleCurrentLayout(gameSeed: 12345);
+if (!outcome.Success)
+{
+    GD.PrintErr(outcome.Failure!.Value.Reason);
+    return;
+}
+// outcome.Result — новый DungeonLayout (Source == Shuffled)
+
+// Переспавн визуала по новому layout:
+// var outcome2 = levelGenerator.TryShuffleCurrentLayoutAndRespawn(gameSeed: 12345);
+```
 
 ---
 

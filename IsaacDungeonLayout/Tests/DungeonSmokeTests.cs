@@ -48,28 +48,14 @@ public static class DungeonSmokeTests
             }
         }
 
-        void CaseConfigRejected(string name, DungeonGenerationConfig cfg)
-        {
-            try
-            {
-                gen.Generate(cfg);
-                failed++;
-                Console.WriteLine($"[FAIL] {name}: ожидался сбой Validate()");
-            }
-            catch (InvalidOperationException ex)
-            {
-                Console.WriteLine($"[OK] {name}: {ex.Message}");
-            }
-        }
-
         Console.WriteLine("=== DungeonSmokeTests ===");
-        CaseConfigRejected("n too small (Validate)", new DungeonGenerationConfig
+        Case("n=1 minimal polyomino", new DungeonGenerationConfig
         {
             Templates = templates,
             BaseRoomCount = 1,
             MobRoomCount = 0,
             Seed = 0,
-            MaxAttempts = 10,
+            MaxAttempts = 2000,
         });
 
         Case("n=2 minimal", new DungeonGenerationConfig

@@ -5,8 +5,8 @@ public static class GridSteps
 {
     public const int CardinalCount = 4;
     public const int QuarterTurns = 4;
-    /// <summary>Минимум базовых комнат: одна клетка не может иметь степень 2..4 в чистом полимино без соседей-баз.</summary>
-    public const int MinBaseRoomCount = 2;
+    /// <summary>Минимум базовых клеток в полимино (1 допустима: к ней цепляются Start/End/Mob на leaf-слотах).</summary>
+    public const int MinBaseRoomCount = 1;
     /// <summary>Верхняя граница итераций роста полимино: n * множитель.</summary>
     public const int PolyominoGrowthGuardMultiplier = 400;
 

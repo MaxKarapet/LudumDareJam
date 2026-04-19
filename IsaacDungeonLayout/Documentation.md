@@ -25,7 +25,7 @@
 
 | Режим | Вход | Выход | Валидация |
 |--------|------|--------|-----------|
-| **С нуля** (`Generate`) | [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs): шаблоны, `BaseRoomCount`, `MobRoomCount`, `Seed`, `MaxAttempts` | [`DungeonLayout`](Core/DungeonLayout.cs), `Source = Generated`, заполненная [`DungeonTopologyTrace`](Core/DungeonTopologyTrace.cs) | [`ValidateGenerated`](Validation/DungeonValidator.cs) — включая leaf/maximin инварианты планировщика |
+| **С нуля** (`Generate`) | [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs): шаблоны, `BaseRoomCount`, `MobRoomCount`, `Seed`, `MaxAttempts`, опционально [`TemplateUsageCapsById`](Core/DungeonGenerationConfig.cs) (лимит использований каждого `RoomTemplate.Id`) | [`DungeonLayout`](Core/DungeonLayout.cs), `Source = Generated`, заполненная [`DungeonTopologyTrace`](Core/DungeonTopologyTrace.cs) | [`ValidateGenerated`](Validation/DungeonValidator.cs) — включая leaf/maximin инварианты планировщика |
 | **Shuffle** (`Shuffle`) | [`ShuffleDungeonInput`](Core/ShuffleDungeonInput.cs): множество клеток, фиксированный старт, пул [`RoomSlotDescriptor`](Core/RoomSlotDescriptor.cs), каталог шаблонов, `Seed` | Тот же `DungeonLayout`, `Source = Shuffled`, **пустая** топология-трасса | [`ValidateShuffled`](Validation/DungeonValidator.cs); опционально сверка множества клеток с исходным графом |
 
 После успеха в обоих режимах вызывается [`DungeonLayoutEnricher.Enrich`](Generation/DungeonLayoutEnricher.cs): у каждой [`PlacedRoom`](Core/PlacedRoom.cs) появляется `GameplayMetadata` (см. [docs/RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md)).

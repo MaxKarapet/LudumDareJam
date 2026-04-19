@@ -44,7 +44,7 @@ internal static class TopologyPlanner
     private static bool TryGrowPolyomino(int targetCount, Random rng, out HashSet<Int2> bases)
     {
         bases = new HashSet<Int2> { Int2.Zero };
-        if (targetCount < GridSteps.MinBaseRoomCount)
+        if (targetCount < 1)
         {
             bases.Clear();
             return false;

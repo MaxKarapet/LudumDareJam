@@ -39,6 +39,8 @@ var cfg = new DungeonGenerationConfig
     MobRoomCount = 2,
     Seed = 42,
     MaxAttempts = 400,
+    // Опционально: фиксированная «колода» — не больше N раз каждый Id (см. GodotIntegration / LevelGenerator).
+    // TemplateUsageCapsById = caps,
 };
 
 var gen = new DungeonGenerator();

@@ -21,7 +21,7 @@ public sealed class DungeonGenerator
             var topo = built.Value.Plan;
             var trace = built.Value.Trace;
 
-            if (!TryAssignTemplates(topo, cfg.Templates, out var rooms, out var templateFail))
+            if (!TryAssignTemplates(topo, cfg, out var rooms, out var templateFail))
             {
                 cfg.DiagnosticLog?.Invoke($"attempt {attempt + 1}: шаблоны — {templateFail}");
                 continue;
@@ -80,23 +80,39 @@ public sealed class DungeonGenerator
 
     private static bool TryAssignTemplates(
         TopologyPlan topo,
-        IReadOnlyList<RoomTemplate> templates,
+        DungeonGenerationConfig cfg,
         out List<PlacedRoom> rooms,
         out string? failReason)
     {
         rooms = new List<PlacedRoom>();
         failReason = null;
+        var templates = cfg.Templates;
+        Dictionary<string, int>? remaining = null;
+        if (cfg.TemplateUsageCapsById is { Count: > 0 } caps)
+        {
+            remaining = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var kv in caps)
+                remaining[kv.Key] = kv.Value;
+        }
+
         var all = topo.AllCells;
 
         foreach (var pos in all.OrderBy(p => p.X).ThenBy(p => p.Z))
         {
             var type = topo.CellType[pos];
             var req = TemplateMatcher.RequiredDirectionsFromNeighbors(pos, all);
-            if (!TemplateMatcher.TryMatch(type, templates, req, out var tmpl, out var rot))
+            var candidates = templates.Where(t => t.Type == type);
+            if (remaining is not null)
+                candidates = candidates.Where(t => remaining.GetValueOrDefault(t.Id, 0) > 0);
+
+            if (!TemplateMatcher.TryMatch(type, candidates.ToList(), req, out var tmpl, out var rot))
             {
                 failReason = $"Нет шаблона для {type} @ {pos} с выходами [{string.Join(", ", req)}].";
                 return false;
             }
+
+            if (remaining is not null)
+                remaining[tmpl!.Id]--;
 
             var finalDirs = RotationHelper.RotateDirections(tmpl!.OutsDir, rot).ToList();
             var neigh = finalDirs.Select(d => pos + d).ToList();

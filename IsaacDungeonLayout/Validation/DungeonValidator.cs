@@ -38,6 +38,29 @@ public static class DungeonValidator
         if (!ValidateRoomTypeCounts(rooms, cfg, out var countErr))
             return countErr;
 
+        if (cfg.TemplateUsageCapsById is { Count: > 0 } caps)
+        {
+            var used = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var r in rooms)
+            {
+                used.TryGetValue(r.TemplateId, out var u);
+                used[r.TemplateId] = u + 1;
+            }
+
+            foreach (var kv in caps)
+            {
+                if (!used.TryGetValue(kv.Key, out var cnt) || cnt != kv.Value)
+                    return
+                        $"Использований шаблона «{kv.Key}»: {used.GetValueOrDefault(kv.Key, 0)}, ожидалось {kv.Value} (режим ограниченной колоды).";
+            }
+
+            foreach (var kv in used)
+            {
+                if (!caps.ContainsKey(kv.Key))
+                    return $"Лишний TemplateId «{kv.Key}» при ограниченной колоде.";
+            }
+        }
+
         var occupied = new HashSet<Int2>(byPos.Keys);
         if (!GridBfs.IsConnected(occupied))
             return "Граф комнат несвязный.";
