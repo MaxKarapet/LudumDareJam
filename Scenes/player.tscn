@@ -22,18 +22,27 @@
 [ext_resource type="Script" uid="uid://babhumjy14uou" path="res://Scripts/Player/states/walking_state.gd" id="16_fd4e3"]
 [ext_resource type="Script" uid="uid://bljluvcht6if2" path="res://Scripts/Player/states/sprinting_state.gd" id="17_qqcod"]
 [ext_resource type="Script" uid="uid://bc2dln0oejba5" path="res://Scripts/Player/states/airborne_state.gd" id="19_fs7ks"]
+[ext_resource type="Script" uid="uid://bwfm8g8gj6lig" path="res://Scripts/Player/states/ghost_state.gd" id="23_bi64h"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_bi64h"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2ijsl"]
+noise = SubResource("FastNoiseLite_bi64h")
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_f60y1"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_v0iea"]
 
 [node name="Player" type="CharacterBody3D" unique_id=1505364487 node_paths=PackedStringArray("camera_anchor", "camera_3d", "state_chart", "standing_collision", "interaction_raycast")]
+collision_layer = 2
+collision_mask = 59
 script = ExtResource("1_cvnsp")
 camera_anchor = NodePath("CameraAnchor")
 camera_3d = NodePath("CameraAnchor/Camera3D")
 state_chart = NodePath("StateChart")
 standing_collision = NodePath("CollisionShape3D")
 interaction_raycast = NodePath("CameraAnchor/Camera3D/RayCast3D")
+red_decal_texture = SubResource("NoiseTexture2D_2ijsl")
 
 [node name="StateChartDebugger" parent="." unique_id=2020817472 instance=ExtResource("2_7dp3o")]
 anchors_preset = 0
@@ -47,6 +56,7 @@ initial_node_to_watch = NodePath("../StateChart")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2086142975]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+cast_shadow = 0
 mesh = SubResource("CapsuleMesh_f60y1")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=604441786]
@@ -64,6 +74,7 @@ player = NodePath("../..")
 
 [node name="RayCast3D" type="RayCast3D" parent="CameraAnchor/Camera3D" unique_id=895416870]
 target_position = Vector3(0, 0, -3)
+collision_mask = 29
 script = ExtResource("3_l6n3p")
 
 [node name="Components" type="Node" parent="." unique_id=938569561]
@@ -177,6 +188,21 @@ to = NodePath("../../Grounded")
 event = &"onGrounded"
 delay_in_seconds = "0.0"
 
+[node name="Ghost" type="Node" parent="StateChart/Root/Movement" unique_id=2117216483]
+script = ExtResource("9_7dp3o")
+initial_state = NodePath("Floating")
+metadata/_custom_type_script = "uid://jk2jm1g6q853"
+
+[node name="Floating" type="Node" parent="StateChart/Root/Movement/Ghost" unique_id=1184222646]
+script = ExtResource("10_h4iuc")
+metadata/_custom_type_script = "uid://cytafq8i1y8qm"
+
+[node name="OnGhost" type="Node" parent="StateChart/Root/Movement" unique_id=1150737567]
+script = ExtResource("11_fd4e3")
+to = NodePath("../Ghost")
+event = &"onGhost"
+delay_in_seconds = "0.0"
+
 [node name="StateMachine" type="Node" parent="." unique_id=1343004639 node_paths=PackedStringArray("player")]
 unique_name_in_owner = true
 script = ExtResource("12_qqcod")
@@ -196,7 +222,6 @@ script = ExtResource("15_h4iuc")
 
 [node name="WalkingState" type="Node" parent="StateMachine/MovementState/GroundedState/MovingState" unique_id=652272021]
 script = ExtResource("16_fd4e3")
-debug = null
 
 [node name="SprintingState" type="Node" parent="StateMachine/MovementState/GroundedState/MovingState" unique_id=379057489]
 script = ExtResource("17_qqcod")
@@ -206,6 +231,18 @@ script = ExtResource("19_fs7ks")
 
 [node name="Jumping" type="Node" parent="StateMachine/MovementState/AirborneState" unique_id=2109101788]
 
+[node name="GhostState" type="Node" parent="StateMachine/MovementState" unique_id=204290481]
+script = ExtResource("23_bi64h")
+
+[node name="Stamina" type="Timer" parent="." unique_id=983024643]
+unique_name_in_owner = true
+one_shot = true
+
+[node name="Stun" type="Timer" parent="." unique_id=374084983]
+unique_name_in_owner = true
+wait_time = 2.0
+one_shot = true
+
 [connection signal="state_physics_processing" from="StateChart/Root/Movement/Grounded" to="StateMachine/MovementState/GroundedState" method="_on_grounded_state_physics_processing"]
 [connection signal="state_physics_processing" from="StateChart/Root/Movement/Grounded/Idle" to="StateMachine/MovementState/GroundedState/IdleState" method="_on_idle_state_physics_processing"]
 [connection signal="state_physics_processing" from="StateChart/Root/Movement/Grounded/Moving" to="StateMachine/MovementState/GroundedState/MovingState" method="_on_moving_state_physics_processing"]
@@ -214,3 +251,7 @@ script = ExtResource("19_fs7ks")
 [connection signal="state_entered" from="StateChart/Root/Movement/Grounded/Moving/Sprinting" to="StateMachine/MovementState/GroundedState/MovingState/SprintingState" method="_on_sprinting_state_entered"]
 [connection signal="state_physics_processing" from="StateChart/Root/Movement/Grounded/Moving/Sprinting" to="StateMachine/MovementState/GroundedState/MovingState/SprintingState" method="_on_sprinting_state_physics_processing"]
 [connection signal="state_physics_processing" from="StateChart/Root/Movement/Airborne" to="StateMachine/MovementState/AirborneState" method="_on_airborne_state_physics_processing"]
+[connection signal="state_entered" from="StateChart/Root/Movement/Ghost" to="StateMachine/MovementState/GhostState" method="_on_ghost_state_entered"]
+[connection signal="state_physics_processing" from="StateChart/Root/Movement/Ghost" to="StateMachine/MovementState/GhostState" method="_on_ghost_state_physics_processing"]
+[connection signal="timeout" from="Stamina" to="." method="_on_stamina_timeout"]
+[connection signal="timeout" from="Stun" to="." method="_on_stun_timeout"]

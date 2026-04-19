@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bt1w57d6e4t6n"]
+
+[ext_resource type="Texture2D" uid="uid://cq2l1c86emxge" path="res://addons/kenney_particle_pack/light_01.png" id="1_3w62d"]
+
+[node name="Brush" type="Decal" unique_id=915464086]
+size = Vector3(0.1, 0.1, 0.1)
+texture_albedo = ExtResource("1_3w62d")
+modulate = Color(1, 0, 0, 1)
+distance_fade_enabled = true
+distance_fade_begin = 5.0

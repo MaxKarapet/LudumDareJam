@@ -1,10 +1,16 @@
 [gd_scene format=3 uid="uid://xefnngjrlls3"]
 
 [ext_resource type="Script" uid="uid://d2cjgd8vuo73y" path="res://Scripts/ui/reticle_draw.gd" id="1_jxero"]
+[ext_resource type="Script" uid="uid://c4u5au6ymsc1e" path="res://Scripts/ui/ui.gd" id="1_qdvrb"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_qdvrb"]
 
 [node name="UI" type="CanvasLayer" unique_id=1131829789]
+process_mode = 3
+script = ExtResource("1_qdvrb")
 
 [node name="Reticle" type="CenterContainer" parent="." unique_id=430469834]
+process_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -18,3 +24,73 @@ radius = 15.0
 thickness = 15.0
 gap_angle = 60.0
 segments = 8
+
+[node name="Main" type="Control" parent="." unique_id=1594328652]
+process_mode = 1
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="GhostLayout" type="ColorRect" parent="Main" unique_id=106606376]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.25882354, 0.44313726, 1, 0.28235295)
+
+[node name="Stamina" type="ProgressBar" parent="Main" unique_id=99988402]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -19.0
+offset_right = 200.0
+offset_bottom = -9.0
+grow_horizontal = 2
+grow_vertical = 0
+show_percentage = false
+
+[node name="ColorRect" type="ColorRect" parent="Main" unique_id=111914296]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TimerText" type="Label" parent="Main" unique_id=135730012]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -20.0
+offset_right = 20.0
+offset_bottom = 23.0
+grow_horizontal = 2
+text = "10:00"
+label_settings = SubResource("LabelSettings_qdvrb")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GhostTime" type="Timer" parent="Main" unique_id=441417969]
+wait_time = 10.0
+one_shot = true
+
+[node name="Timer" type="Timer" parent="." unique_id=1088986812]
+wait_time = 3.0
+one_shot = true
+
+[connection signal="timeout" from="Main/GhostTime" to="." method="_on_ghost_time_timeout"]
+[connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

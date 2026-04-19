@@ -1,0 +1,11 @@
+res://Scenes/base_trap.tscn
+res://Assets/Environment/GrittyEnvironment.tres
+res://addons/new_shader.tres
+res://shaders/shaderlib/pixelposturized_shader.gdshader
+res://Scripts/Components/mesh_painter.gd
+res://Scenes/player.tscn
+res://Scripts/Player/player.gd
+res://Scenes/TestScene.tscn
+res://Scripts/UVPosition.gd
+res://Scripts/trap.gd
+res://Scenes/brush.tscn
