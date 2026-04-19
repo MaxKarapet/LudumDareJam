@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://dvkmv6pbjd30o"]
+
+[ext_resource type="Script" uid="uid://ddtv46rdiarhb" path="res://IsaacDungeonLayout/RoomScene.cs" id="1_lnj4t"]
+
+[node name="Room5" type="Node3D" unique_id=2087168784]
+script = ExtResource("1_lnj4t")
+OutsDir = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0)])
+metadata/_custom_type_script = "uid://ddtv46rdiarhb"
+
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1349646548]
+size = Vector3(3, 1, 1)

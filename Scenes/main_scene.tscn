@@ -2,8 +2,17 @@
 
 [ext_resource type="PackedScene" uid="uid://xefnngjrlls3" path="res://Scenes/ui.tscn" id="1_52fb6"]
 [ext_resource type="Script" uid="uid://cyoxh8e6yy6iu" path="res://Scripts/game_manager.gd" id="1_jv6wh"]
-[ext_resource type="PackedScene" uid="uid://bjm30p0ahqw1e" path="res://Scenes/TestScene.tscn" id="2_jv6wh"]
+[ext_resource type="Script" uid="uid://iewlhxr1o5un" path="res://IsaacDungeonLayout/LevelGenerator.cs" id="2_iacmt"]
+[ext_resource type="PackedScene" uid="uid://rm7laslicicl" path="res://Scenes/rooms/room_1.tscn" id="3_7ewk0"]
+[ext_resource type="PackedScene" uid="uid://bngl70u3xxng3" path="res://Scenes/rooms/room_2.tscn" id="4_lhp3t"]
 [ext_resource type="Shader" uid="uid://ccryi22rumttf" path="res://shaders/shaderlib/pixelposturized_shader.gdshader" id="4_x6ack"]
+[ext_resource type="PackedScene" uid="uid://chmc0bw187tdk" path="res://Scenes/rooms/room_3.tscn" id="5_gnsmo"]
+[ext_resource type="PackedScene" uid="uid://btvhew33culgd" path="res://Scenes/rooms/room_4.tscn" id="6_psl12"]
+[ext_resource type="PackedScene" uid="uid://dvkmv6pbjd30o" path="res://Scenes/rooms/room_5.tscn" id="7_2ebs2"]
+[ext_resource type="PackedScene" uid="uid://c6uldyvs1u8sy" path="res://Scenes/rooms/end_room.tscn" id="8_oyb3p"]
+[ext_resource type="PackedScene" uid="uid://c18n0gkno7b7k" path="res://Scenes/rooms/mob_room.tscn" id="9_jvnna"]
+[ext_resource type="PackedScene" uid="uid://c5ycuqo3dj4dx" path="res://Scenes/rooms/start_room.tscn" id="10_b48ew"]
+[ext_resource type="PackedScene" uid="uid://k8dovpttqaa0" path="res://Scenes/rooms/room_6.tscn" id="11_8edxt"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sreuk"]
 render_priority = 0
@@ -35,10 +44,15 @@ size = Vector2(2, 2)
 script = ExtResource("1_jv6wh")
 
 [node name="CurrentLevel" type="Node3D" parent="." unique_id=2145260403]
+script = ExtResource("2_iacmt")
+RoomScenes = Array[PackedScene]([ExtResource("3_7ewk0"), ExtResource("4_lhp3t"), ExtResource("5_gnsmo"), ExtResource("6_psl12"), ExtResource("7_2ebs2"), ExtResource("8_oyb3p"), ExtResource("9_jvnna"), ExtResource("10_b48ew"), ExtResource("11_8edxt")])
+CellSize = 3.0
 
-[node name="TestScene" parent="CurrentLevel" unique_id=763528405 instance=ExtResource("2_jv6wh")]
+[node name="Camera3D" type="Camera3D" parent="CurrentLevel" unique_id=1763503955]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 24, 0)
 
 [node name="UI" parent="." unique_id=1131829789 instance=ExtResource("1_52fb6")]
+visible = false
 
 [node name="PostProcessing" type="MeshInstance3D" parent="." unique_id=1421016726]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

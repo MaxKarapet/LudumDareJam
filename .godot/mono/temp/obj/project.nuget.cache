@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "I48Y8Mr3I6E=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\gajjer\\Documents\\LudumDareJam\\EnviromentalPostProcessing.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\gajjer\\.nuget\\packages\\godot.sourcegenerators\\4.6.1\\godot.sourcegenerators.4.6.1.nupkg.sha512",
+    "C:\\Users\\gajjer\\.nuget\\packages\\godotsharp\\4.6.1\\godotsharp.4.6.1.nupkg.sha512",
+    "C:\\Users\\gajjer\\.nuget\\packages\\godotsharpeditor\\4.6.1\\godotsharpeditor.4.6.1.nupkg.sha512",
+    "C:\\Users\\gajjer\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.24\\microsoft.netcore.app.ref.8.0.24.nupkg.sha512",
+    "C:\\Users\\gajjer\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.24\\microsoft.windowsdesktop.app.ref.8.0.24.nupkg.sha512",
+    "C:\\Users\\gajjer\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.24\\microsoft.aspnetcore.app.ref.8.0.24.nupkg.sha512"
+  ],
+  "logs": []
+}

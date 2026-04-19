@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://btvhew33culgd"]
+
+[ext_resource type="Script" uid="uid://ddtv46rdiarhb" path="res://IsaacDungeonLayout/RoomScene.cs" id="1_s73s6"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_secex"]
+albedo_color = Color(1, 0.08627451, 1, 1)
+
+[node name="Room4" type="Node3D" unique_id=2087168784]
+script = ExtResource("1_s73s6")
+OutsDir = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1)])
+metadata/_custom_type_script = "uid://ddtv46rdiarhb"
+
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1349646548]
+size = Vector3(3, 1, 1)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D" unique_id=223913974]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 0, -1)
+size = Vector3(1.5, 1, 1)
+material = SubResource("StandardMaterial3D_secex")

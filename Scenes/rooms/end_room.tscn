@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c6uldyvs1u8sy"]
+
+[ext_resource type="Script" uid="uid://ddtv46rdiarhb" path="res://IsaacDungeonLayout/RoomScene.cs" id="1_yn0rg"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jup4g"]
+albedo_color = Color(0, 0, 1, 1)
+
+[node name="EndRoom" type="Node3D" unique_id=2087168784]
+script = ExtResource("1_yn0rg")
+RoomType = "end"
+OutsDir = Array[Vector2i]([Vector2i(1, 0)])
+metadata/_custom_type_script = "uid://ddtv46rdiarhb"
+
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=587925291]
+material = SubResource("StandardMaterial3D_jup4g")
