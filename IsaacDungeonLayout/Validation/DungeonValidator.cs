@@ -23,9 +23,10 @@ public static class DungeonValidator
             return "Для layout.Source == Shuffled вызывайте ValidateShuffled.";
 
         var rooms = layout.Rooms;
-        int expectedTotal = cfg.BaseRoomCount + cfg.MobRoomCount + 2;
+        int plugRooms = rooms.Count(r => r.RoomType == RoomType.Plug);
+        int expectedTotal = cfg.BaseRoomCount + cfg.MobRoomCount + 2 + plugRooms;
         if (rooms.Count != expectedTotal)
-            return $"Ожидалось {expectedTotal} комнат, получено {rooms.Count}.";
+            return $"Ожидалось {expectedTotal} комнат (включая {plugRooms} Plug), получено {rooms.Count}.";
 
         var byPos = new Dictionary<Int2, PlacedRoom>();
         foreach (var r in rooms)
@@ -56,8 +57,12 @@ public static class DungeonValidator
 
             foreach (var kv in used)
             {
-                if (!caps.ContainsKey(kv.Key))
-                    return $"Лишний TemplateId «{kv.Key}» при ограниченной колоде.";
+                if (caps.ContainsKey(kv.Key))
+                    continue;
+                if (!string.IsNullOrEmpty(cfg.PlugTemplateId) &&
+                    string.Equals(kv.Key, cfg.PlugTemplateId, StringComparison.Ordinal))
+                    continue;
+                return $"Лишний TemplateId «{kv.Key}» при ограниченной колоде.";
             }
         }
 
@@ -104,9 +109,23 @@ public static class DungeonValidator
                 return $"Mob {r.GridPosition} отсутствует в MobPositions.";
         }
 
-        var topoErr = ValidateTopologyInvariants(layout, start.GridPosition, end.GridPosition, dist);
-        if (topoErr is not null)
-            return topoErr;
+        if (plugRooms == 0)
+        {
+            var topoErr = ValidateTopologyInvariants(layout, start.GridPosition, end.GridPosition, dist);
+            if (topoErr is not null)
+                return topoErr;
+        }
+
+        if (layout.Topology.PlugCellPositions.Count != plugRooms)
+            return $"Число Plug в трассировке ({layout.Topology.PlugCellPositions.Count}) не совпадает с числом Plug-комнат ({plugRooms}).";
+
+        if (plugRooms > 0)
+        {
+            var fromRooms = rooms.Where(r => r.RoomType == RoomType.Plug).Select(r => r.GridPosition).ToHashSet();
+            var fromTrace = layout.Topology.PlugCellPositions.ToHashSet();
+            if (!fromRooms.SetEquals(fromTrace))
+                return "Множество позиций Plug в layout не совпадает с Topology.PlugCellPositions.";
+        }
 
         return null;
     }
@@ -122,7 +141,7 @@ public static class DungeonValidator
             return "Для сгенерированного layout вызывайте ValidateGenerated.";
 
         var rooms = layout.Rooms;
-        int expectedTotal = expect.BaseCount + expect.MobCount + 2;
+        int expectedTotal = expect.BaseCount + expect.MobCount + expect.PlugCount + 2;
         if (rooms.Count != expectedTotal)
             return $"Ожидалось {expectedTotal} комнат, получено {rooms.Count}.";
 
@@ -196,13 +215,14 @@ public static class DungeonValidator
         ShuffleTypeExpectation expect,
         out string? error)
     {
-        int b = 0, m = 0, s = 0, e = 0;
+        int b = 0, m = 0, p = 0, s = 0, e = 0;
         foreach (var r in rooms)
         {
             switch (r.RoomType)
             {
                 case RoomType.Base: b++; break;
                 case RoomType.Mob: m++; break;
+                case RoomType.Plug: p++; break;
                 case RoomType.Start: s++; break;
                 case RoomType.End: e++; break;
             }
@@ -210,6 +230,7 @@ public static class DungeonValidator
 
         if (b != expect.BaseCount) { error = $"Базовых комнат {b}, ожидалось {expect.BaseCount}."; return false; }
         if (m != expect.MobCount) { error = $"Mob: {m}, ожидалось {expect.MobCount}."; return false; }
+        if (p != expect.PlugCount) { error = $"Plug: {p}, ожидалось {expect.PlugCount}."; return false; }
         if (s != 1) { error = $"Start: {s}, ожидалось 1."; return false; }
         if (e != 1) { error = $"End: {e}, ожидалось 1."; return false; }
         error = null;
@@ -228,6 +249,7 @@ public static class DungeonValidator
             {
                 case RoomType.Base: b++; break;
                 case RoomType.Mob: m++; break;
+                case RoomType.Plug: break;
                 case RoomType.Start: s++; break;
                 case RoomType.End: e++; break;
             }
@@ -269,7 +291,7 @@ public static class DungeonValidator
         {
             RoomType.Base when gridDeg is < 2 or > 4 =>
                 $"База {r.GridPosition}: степень {gridDeg} не в [2,4].",
-            RoomType.Mob or RoomType.Start or RoomType.End when gridDeg != 1 =>
+            RoomType.Mob or RoomType.Start or RoomType.End or RoomType.Plug when gridDeg != 1 =>
                 $"Комната {r.RoomType} {r.GridPosition}: степень должна быть 1, сейчас {gridDeg}.",
             _ => null
         };

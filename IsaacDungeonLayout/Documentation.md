@@ -25,7 +25,7 @@
 
 | Режим | Вход | Выход | Валидация |
 |--------|------|--------|-----------|
-| **С нуля** (`Generate`) | [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs): шаблоны, `BaseRoomCount`, `MobRoomCount`, `Seed`, `MaxAttempts`, опционально [`TemplateUsageCapsById`](Core/DungeonGenerationConfig.cs) (лимит использований каждого `RoomTemplate.Id`) | [`DungeonLayout`](Core/DungeonLayout.cs), `Source = Generated`, заполненная [`DungeonTopologyTrace`](Core/DungeonTopologyTrace.cs) | [`ValidateGenerated`](Validation/DungeonValidator.cs) — включая leaf/maximin инварианты планировщика |
+| **С нуля** (`Generate`) | [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs): шаблоны, `BaseRoomCount`, `MobRoomCount`, `Seed`, `MaxAttempts`, опционально [`TemplateUsageCapsById`](Core/DungeonGenerationConfig.cs), опционально расширение Plug ([`AllowTopologyPlugExpansion`](Core/DungeonGenerationConfig.cs), [`DeckFeasibility`](Generation/DeckFeasibility.cs)) | [`DungeonLayout`](Core/DungeonLayout.cs), `Source = Generated`, заполненная [`DungeonTopologyTrace`](Core/DungeonTopologyTrace.cs) (поле `PlugCellPositions` при авто-заглушках) | [`ValidateGenerated`](Validation/DungeonValidator.cs) — при отсутствии Plug: leaf/maximin; при Plug — эти инварианты пропускаются |
 | **Shuffle** (`Shuffle`) | [`ShuffleDungeonInput`](Core/ShuffleDungeonInput.cs): множество клеток, фиксированный старт, пул [`RoomSlotDescriptor`](Core/RoomSlotDescriptor.cs), каталог шаблонов, `Seed` | Тот же `DungeonLayout`, `Source = Shuffled`, **пустая** топология-трасса | [`ValidateShuffled`](Validation/DungeonValidator.cs); опционально сверка множества клеток с исходным графом |
 
 После успеха в обоих режимах вызывается [`DungeonLayoutEnricher.Enrich`](Generation/DungeonLayoutEnricher.cs): у каждой [`PlacedRoom`](Core/PlacedRoom.cs) появляется `GameplayMetadata` (см. [docs/RoomGameplayMetadata.md](docs/RoomGameplayMetadata.md)).
@@ -136,6 +136,7 @@ flowchart LR
 - Недостаточно шаблонов для степени узла → многократные неудачи до исчерпания `MaxAttempts`.
 - Слишком большой **`MobRoomCount`** относительно числа листьевых слотов — генерация не найдёт валидный layout.
 - **Shuffle**: worst-case перебор может быть тяжёлым на большом графе; `Seed` даёт воспроизводимый порядок ветвей, но не гарантирует «другой» результат при каждом изменении сида.
+- **Plug / заглушки:** сейчас поддержаны тупики с **одним** выходом. Теоретически тот же приём можно распространить на вспомогательные клетки со степенями **2, 3, 4** в графе; тогда критично **минимизировать** их число, иначе данж раздувается и уходит от задуманной колоды `RoomScenes` (см. [GodotIntegration.md](GodotIntegration.md) §4.1).
 - Консольный проект с **`OutputType` Exe** — удобно для тестов; для переиспользования как DLL см. [GettingStarted.md](docs/GettingStarted.md).
 
 ---

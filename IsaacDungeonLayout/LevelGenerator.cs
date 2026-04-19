@@ -7,7 +7,11 @@ using IsaacDungeonLayout;
 
 public partial class LevelGenerator : Node3D
 {
+    private const string DungeonTemplateIdMeta = "dungeon_template_id";
+
     [Export] public PackedScene[] RoomScenes;
+    /// <summary>Опционально: тупиковая заглушка (1 выход), вне колоды <see cref="RoomScenes"/>; включает <see cref="DungeonGenerationConfig.AllowTopologyPlugExpansion"/>.</summary>
+    [Export] public PackedScene PlugScene;
     [Export] public int Seed = 42;
     [Export] public int MaxGenerationAttempts = 500;
     [Export] public float CellSize = 20.0f;
@@ -33,15 +37,36 @@ public partial class LevelGenerator : Node3D
             return;
         }
 
+        var catalogList = catalog.ToList();
+        string? plugTemplateId = null;
+        if (PlugScene != null)
+        {
+            var plugInst = PlugScene.Instantiate<RoomScene>();
+            plugTemplateId = plugInst.Name;
+            _sceneCache[plugTemplateId] = PlugScene;
+            var outs = plugInst.OutsDir.Select(v => new Int2(v.X, v.Y)).ToArray();
+            catalogList.Add(new RoomTemplate
+            {
+                Id = plugTemplateId,
+                Type = RoomType.Plug,
+                OutsNum = outs.Length,
+                OutsDir = outs
+            });
+            plugInst.QueueFree();
+        }
+
         var config = new DungeonGenerationConfig
         {
-            Templates = catalog,
+            Templates = catalogList,
             BaseRoomCount = baseCount,
             MobRoomCount = mobCount,
             Seed = Seed,
             MaxAttempts = Math.Max(MaxGenerationAttempts, (baseCount + mobCount + 2) * 40),
             DiagnosticLog = GD.Print,
-            TemplateUsageCapsById = caps
+            TemplateUsageCapsById = caps,
+            PlugTemplateId = plugTemplateId,
+            AllowTopologyPlugExpansion = plugTemplateId is not null,
+            MaxTopologyPlugExpansions = 48
         };
 
         var generator = new DungeonGenerator();
@@ -72,6 +97,15 @@ public partial class LevelGenerator : Node3D
         var roomNodes = GetChildren().OfType<RoomScene>().ToArray();
         if (roomNodes.Length == 0)
             return DungeonGenerationOutcome.Fail("Нет потомков RoomScene для shuffle.", 0);
+
+        bool needPlugSlots = roomNodes.Any(r =>
+            string.Equals(r.RoomType, "plug", StringComparison.OrdinalIgnoreCase));
+        if (needPlugSlots && PlugScene == null)
+            return DungeonGenerationOutcome.Fail(
+                "В сцене есть комнаты с RoomType «plug» — задайте Export PlugScene для shuffle.", 0);
+
+        if (PlugScene != null)
+            TryAppendPlugTemplateForShuffle(ref catalog);
 
         int startCount = roomNodes.Count(r =>
             string.Equals(r.RoomType, "start", StringComparison.OrdinalIgnoreCase));
@@ -109,8 +143,25 @@ public partial class LevelGenerator : Node3D
         return new DungeonGenerator().Shuffle(input);
     }
 
-    /// <summary>Успешный shuffle: удаляет старые <see cref="RoomScene"/> и переспавнивает по новому <see cref="DungeonLayout"/>.</summary>
-    public DungeonGenerationOutcome TryShuffleCurrentLayoutAndRespawn(int gameSeed)
+    /// <summary>Успешный shuffle: обновляет уже существующие <see cref="RoomScene"/> (поворот, мета; замена сцены только при смене <c>TemplateId</c>).</summary>
+    public DungeonGenerationOutcome TryShuffleCurrentLayoutInPlace(int gameSeed)
+    {
+        var outcome = TryShuffleCurrentLayout(gameSeed);
+        if (!outcome.Success)
+            return outcome;
+
+        var err = ApplyShuffleLayoutInPlace(outcome.Result!);
+        return err is null
+            ? outcome
+            : DungeonGenerationOutcome.Fail(err, outcome.AttemptsUsed);
+    }
+
+    /// <summary>Алиас: то же, что <see cref="TryShuffleCurrentLayoutInPlace"/>.</summary>
+    public DungeonGenerationOutcome TryShuffleCurrentLayoutAndRespawn(int gameSeed) =>
+        TryShuffleCurrentLayoutInPlace(gameSeed);
+
+    /// <summary>Полное удаление и пересоздание всех комнат (старое поведение).</summary>
+    public DungeonGenerationOutcome TryShuffleCurrentLayoutWithFullRespawn(int gameSeed)
     {
         var outcome = TryShuffleCurrentLayout(gameSeed);
         if (!outcome.Success)
@@ -128,6 +179,83 @@ public partial class LevelGenerator : Node3D
             RemoveChild(child);
             child.Free();
         }
+    }
+
+    /// <summary>Добавляет шаблон Plug в каталог для shuffle (если задан <see cref="PlugScene"/>).</summary>
+    private void TryAppendPlugTemplateForShuffle(ref List<RoomTemplate> catalog)
+    {
+        if (PlugScene == null)
+            return;
+
+        var plugInst = PlugScene.Instantiate<RoomScene>();
+        try
+        {
+            string plugId = plugInst.Name;
+            if (catalog.Any(t => t.Id == plugId))
+                return;
+
+            var outs = plugInst.OutsDir.Select(v => new Int2(v.X, v.Y)).ToArray();
+            _sceneCache[plugId] = PlugScene;
+            catalog.Add(new RoomTemplate
+            {
+                Id = plugId,
+                Type = RoomType.Plug,
+                OutsNum = outs.Length,
+                OutsDir = outs
+            });
+        }
+        finally
+        {
+            plugInst.QueueFree();
+        }
+    }
+
+    private string? ApplyShuffleLayoutInPlace(DungeonLayout layout)
+    {
+        var byGrid = new Dictionary<Int2, RoomScene>();
+        foreach (var child in GetChildren().OfType<RoomScene>())
+        {
+            var g = WorldToGrid(child.Position);
+            if (byGrid.ContainsKey(g))
+                return $"Две комнаты в одной клетке сетки {g} — in-place shuffle невозможен.";
+            byGrid[g] = child;
+        }
+
+        if (byGrid.Count != layout.Rooms.Count)
+            return $"Число RoomScene ({byGrid.Count}) не совпадает с layout ({layout.Rooms.Count}).";
+
+        foreach (var room in layout.Rooms)
+        {
+            if (!byGrid.TryGetValue(room.GridPosition, out var node))
+                return $"Нет ноды на клетке {room.GridPosition}.";
+
+            string prevId = node.HasMeta(DungeonTemplateIdMeta)
+                ? node.GetMeta(DungeonTemplateIdMeta).AsString()
+                : string.Empty;
+
+            var pos = new Vector3(room.GridPosition.X * CellSize, 0, room.GridPosition.Z * CellSize);
+            float rotationY = -room.RotationSteps90 * (Mathf.Pi / 2f);
+
+            if (room.TemplateId != prevId)
+            {
+                if (!_sceneCache.TryGetValue(room.TemplateId, out var scene))
+                    return $"Нет сцены в кэше для шаблона {room.TemplateId}.";
+
+                RemoveChild(node);
+                node.QueueFree();
+
+                node = scene.Instantiate<RoomScene>();
+                AddChild(node);
+                byGrid[room.GridPosition] = node;
+            }
+
+            node.Position = pos;
+            node.Rotation = new Vector3(0, rotationY, 0);
+            node.SetMeta(DungeonTemplateIdMeta, room.TemplateId);
+            ApplyGameplayMetadataToRoom(node, room);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -169,6 +297,13 @@ public partial class LevelGenerator : Node3D
             _sceneCache[id] = scene;
 
             var type = MapExportRoomTypeString(instance.RoomType);
+            if (type == RoomType.Plug)
+            {
+                instance.QueueFree();
+                error = "Тип «plug» в RoomScenes не поддерживается — используйте Export PlugScene.";
+                return false;
+            }
+
             switch (type)
             {
                 case RoomType.Start:
@@ -231,11 +366,25 @@ public partial class LevelGenerator : Node3D
             "start" => RoomType.Start,
             "end" => RoomType.End,
             "mob" => RoomType.Mob,
+            "plug" => RoomType.Plug,
             _ => RoomType.Base
         };
 
     private Int2 WorldToGrid(Vector3 pos) =>
         new(Mathf.RoundToInt(pos.X / CellSize), Mathf.RoundToInt(pos.Z / CellSize));
+
+    private static void ApplyGameplayMetadataToRoom(RoomScene node, PlacedRoom room)
+    {
+        if (room.GameplayMetadata is not { } meta)
+            return;
+
+        node.SetMeta("gameplay_dist_from_start", meta.DistanceFromStartEdges);
+        node.SetMeta("gameplay_dist_to_end", meta.DistanceToEndEdges);
+        node.SetMeta("gameplay_on_shortest_path", meta.OnShortestPathStartToEnd);
+        node.SetMeta("gameplay_dist_to_nearest_mob", meta.DistanceToNearestMobEdges);
+        foreach (var kv in meta.NeighborCountByType)
+            node.SetMeta($"gameplay_neighbor_{kv.Key}", kv.Value);
+    }
 
     private void SpawnRooms(DungeonLayout layout)
     {
@@ -257,16 +406,8 @@ public partial class LevelGenerator : Node3D
 
             float rotationY = -room.RotationSteps90 * (Mathf.Pi / 2f);
             instance.Rotation = new Vector3(0, rotationY, 0);
-
-            if (room.GameplayMetadata is { } meta)
-            {
-                instance.SetMeta("gameplay_dist_from_start", meta.DistanceFromStartEdges);
-                instance.SetMeta("gameplay_dist_to_end", meta.DistanceToEndEdges);
-                instance.SetMeta("gameplay_on_shortest_path", meta.OnShortestPathStartToEnd);
-                instance.SetMeta("gameplay_dist_to_nearest_mob", meta.DistanceToNearestMobEdges);
-                foreach (var kv in meta.NeighborCountByType)
-                    instance.SetMeta($"gameplay_neighbor_{kv.Key}", kv.Value);
-            }
+            instance.SetMeta(DungeonTemplateIdMeta, room.TemplateId);
+            ApplyGameplayMetadataToRoom(instance, room);
 
             AddChild(instance);
         }

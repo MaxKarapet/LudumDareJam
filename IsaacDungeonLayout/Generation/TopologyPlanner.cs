@@ -37,7 +37,13 @@ internal static class TopologyPlanner
 
         var plan = new TopologyPlan { AllCells = allCells, CellType = cellType };
         var baseList = bases.OrderBy(p => p.X).ThenBy(p => p.Z).ToList();
-        var trace = new DungeonTopologyTrace(baseList, leafIterationOrder, mobPlacementOrder);
+        var trace = new DungeonTopologyTrace
+        {
+            BaseCellPositions = baseList,
+            LeafSlotIterationOrder = leafIterationOrder,
+            MobPlacementOrder = mobPlacementOrder,
+            PlugCellPositions = Array.Empty<Int2>()
+        };
         return new TopologyBuildResult(plan, trace);
     }
 

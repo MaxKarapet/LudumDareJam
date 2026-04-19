@@ -5,7 +5,14 @@ public sealed class DungeonGenerator
     public DungeonGenerationOutcome Generate(DungeonGenerationConfig cfg)
     {
         cfg.Validate();
-        cfg.DiagnosticLog?.Invoke($"Generate: seed={cfg.Seed}, n={cfg.BaseRoomCount}, m={cfg.MobRoomCount}, maxAttempts={cfg.MaxAttempts}");
+
+        var fatal = DeckFeasibility.TryGetBlockingReason(cfg);
+        if (fatal is not null)
+            return DungeonGenerationOutcome.Fail(fatal, 0);
+
+        DeckFeasibility.LogSoftWarnings(cfg, cfg.DiagnosticLog);
+
+        cfg.DiagnosticLog?.Invoke($"Generate: seed={cfg.Seed}, n={cfg.BaseRoomCount}, m={cfg.MobRoomCount}, maxAttempts={cfg.MaxAttempts}, plugExp={cfg.AllowTopologyPlugExpansion}");
 
         for (int attempt = 0; attempt < cfg.MaxAttempts; attempt++)
         {
@@ -18,10 +25,32 @@ public sealed class DungeonGenerator
                 continue;
             }
 
-            var topo = built.Value.Plan;
+            var plan = built.Value.Plan;
             var trace = built.Value.Trace;
 
-            if (!TryAssignTemplates(topo, cfg, out var rooms, out var templateFail))
+            List<PlacedRoom>? rooms = null;
+            string? templateFail = null;
+            var maxPlugSteps = cfg.AllowTopologyPlugExpansion && !string.IsNullOrEmpty(cfg.PlugTemplateId)
+                ? cfg.MaxTopologyPlugExpansions
+                : 0;
+
+            var assigned = false;
+            for (int plugStep = 0; plugStep <= maxPlugSteps; plugStep++)
+            {
+                if (TryAssignTemplates(plan, cfg, out rooms, out templateFail))
+                {
+                    assigned = true;
+                    break;
+                }
+
+                if (plugStep >= maxPlugSteps)
+                    break;
+
+                if (!TopologyPlugExpander.TryAddOnePlug(plan, trace, rng, out plan, out trace, out _))
+                    break;
+            }
+
+            if (!assigned || rooms is null)
             {
                 cfg.DiagnosticLog?.Invoke($"attempt {attempt + 1}: шаблоны — {templateFail}");
                 continue;
@@ -101,18 +130,45 @@ public sealed class DungeonGenerator
         {
             var type = topo.CellType[pos];
             var req = TemplateMatcher.RequiredDirectionsFromNeighbors(pos, all);
-            var candidates = templates.Where(t => t.Type == type);
-            if (remaining is not null)
-                candidates = candidates.Where(t => remaining.GetValueOrDefault(t.Id, 0) > 0);
+            RoomTemplate? tmpl;
+            int rot;
 
-            if (!TemplateMatcher.TryMatch(type, candidates.ToList(), req, out var tmpl, out var rot))
+            if (type == RoomType.Plug)
             {
-                failReason = $"Нет шаблона для {type} @ {pos} с выходами [{string.Join(", ", req)}].";
-                return false;
-            }
+                if (string.IsNullOrWhiteSpace(cfg.PlugTemplateId))
+                {
+                    failReason = "Клетка Plug в топологии, но PlugTemplateId не задан.";
+                    return false;
+                }
 
-            if (remaining is not null)
-                remaining[tmpl!.Id]--;
+                var plugList = templates.Where(t => t.Id == cfg.PlugTemplateId && t.Type == RoomType.Plug).ToList();
+                if (plugList.Count == 0)
+                {
+                    failReason = $"Шаблон Plug «{cfg.PlugTemplateId}» не найден в каталоге.";
+                    return false;
+                }
+
+                if (!TemplateMatcher.TryMatch(RoomType.Plug, plugList, req, out tmpl, out rot))
+                {
+                    failReason = $"Нет шаблона Plug @ {pos} с выходами [{string.Join(", ", req)}].";
+                    return false;
+                }
+            }
+            else
+            {
+                var candidates = templates.Where(t => t.Type == type);
+                if (remaining is not null)
+                    candidates = candidates.Where(t => remaining.GetValueOrDefault(t.Id, 0) > 0);
+
+                if (!TemplateMatcher.TryMatch(type, candidates.ToList(), req, out tmpl, out rot))
+                {
+                    failReason = $"Нет шаблона для {type} @ {pos} с выходами [{string.Join(", ", req)}].";
+                    return false;
+                }
+
+                if (remaining is not null)
+                    remaining[tmpl!.Id]--;
+            }
 
             var finalDirs = RotationHelper.RotateDirections(tmpl!.OutsDir, rot).ToList();
             var neigh = finalDirs.Select(d => pos + d).ToList();

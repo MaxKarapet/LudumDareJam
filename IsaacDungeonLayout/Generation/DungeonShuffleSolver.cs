@@ -77,7 +77,13 @@ public static class DungeonShuffleSolver
                         .ThenBy(p => p.Z)
                         .ToList();
 
-                    var emptyTrace = new DungeonTopologyTrace([], [], []);
+                    var emptyTrace = new DungeonTopologyTrace
+                    {
+                        BaseCellPositions = [],
+                        LeafSlotIterationOrder = [],
+                        MobPlacementOrder = [],
+                        PlugCellPositions = []
+                    };
                     var layout = new DungeonLayout
                     {
                         Rooms = map.Values.OrderBy(r => r.GridPosition.X).ThenBy(r => r.GridPosition.Z).ToList(),

@@ -15,8 +15,18 @@ public sealed class DungeonGenerationConfig
     /// <summary>
     /// Если задано, каждый <see cref="RoomTemplate.Id"/> можно использовать не больше указанного числа раз (мультимножество «колоды»).
     /// Сумма значений должна совпадать с <c>BaseRoomCount + MobRoomCount + 2</c>, а суммы по типам — с числом клеток этого типа в топологии.
+    /// Шаблоны типа <see cref="RoomType.Plug"/> в лимиты не входят (см. <see cref="PlugTemplateId"/>).
     /// </summary>
     public IReadOnlyDictionary<string, int>? TemplateUsageCapsById { get; init; }
+
+    /// <summary>Id шаблона типа <see cref="RoomType.Plug"/> из <see cref="Templates"/> (1 выход); не расходует <see cref="TemplateUsageCapsById"/>.</summary>
+    public string? PlugTemplateId { get; init; }
+
+    /// <summary>При провале подбора шаблонов — добавлять клетки Plug у границы полимино (см. <see cref="MaxTopologyPlugExpansions"/>).</summary>
+    public bool AllowTopologyPlugExpansion { get; init; }
+
+    /// <summary>Максимум добавленных Plug-клеток за одну попытку топологии (после каждого шага — повторный <c>TryAssignTemplates</c>).</summary>
+    public int MaxTopologyPlugExpansions { get; init; } = 32;
 
     public void Validate()
     {
@@ -43,6 +53,19 @@ public sealed class DungeonGenerationConfig
         if (!Any(Templates, RoomType.End))
             throw new InvalidOperationException("Нужен хотя бы один шаблон типа End.");
 
+        if (AllowTopologyPlugExpansion)
+        {
+            if (string.IsNullOrWhiteSpace(PlugTemplateId))
+                throw new InvalidOperationException("AllowTopologyPlugExpansion: нужен непустой PlugTemplateId.");
+            var plugT = Templates.FirstOrDefault(t => t.Id == PlugTemplateId);
+            if (plugT is null)
+                throw new InvalidOperationException($"AllowTopologyPlugExpansion: шаблон «{PlugTemplateId}» не найден в Templates.");
+            if (plugT.Type != RoomType.Plug)
+                throw new InvalidOperationException($"Шаблон «{PlugTemplateId}» должен иметь тип Plug.");
+            if (MaxTopologyPlugExpansions < 0)
+                throw new InvalidOperationException("MaxTopologyPlugExpansions не может быть отрицательным.");
+        }
+
         if (TemplateUsageCapsById is { Count: > 0 } caps)
             ValidateTemplateCaps(caps);
     }
@@ -56,6 +79,8 @@ public sealed class DungeonGenerationConfig
                 throw new InvalidOperationException($"TemplateUsageCapsById: неизвестный Id «{kv.Key}».");
             if (kv.Value < 1)
                 throw new InvalidOperationException($"TemplateUsageCapsById: для «{kv.Key}» указано {kv.Value}, ожидается >= 1.");
+            if (byId[kv.Key].Type == RoomType.Plug)
+                throw new InvalidOperationException($"TemplateUsageCapsById: тип Plug («{kv.Key}») не должен входить в лимиты колоды — используйте PlugTemplateId.");
         }
 
         int total = caps.Values.Sum();

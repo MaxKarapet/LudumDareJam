@@ -60,5 +60,12 @@ public static class DemoTemplates
             OutsNum = 1,
             OutsDir = [new Int2(1, 0)],
         },
+        new RoomTemplate
+        {
+            Id = "plug_dead",
+            Type = RoomType.Plug,
+            OutsNum = 1,
+            OutsDir = [new Int2(1, 0)],
+        },
     ];
 }

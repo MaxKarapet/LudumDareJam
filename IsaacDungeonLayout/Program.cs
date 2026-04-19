@@ -12,6 +12,7 @@ internal static class Program
             "helper" => HelperTests.Run(),
             "metadata" => MetadataEnrichmentTests.Run(),
             "stress" => DungeonStressTests.Run(),
+            "deck" => DeckFeasibilityTests.Run(),
             _ => RunDefaultSuite(),
         };
     }
@@ -23,6 +24,9 @@ internal static class Program
         if (code != 0)
             return code;
         code = MetadataEnrichmentTests.Run();
+        if (code != 0)
+            return code;
+        code = DeckFeasibilityTests.Run();
         if (code != 0)
             return code;
         return ShuffleDungeonTests.Run();

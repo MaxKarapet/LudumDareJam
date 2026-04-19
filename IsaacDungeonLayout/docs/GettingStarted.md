@@ -16,11 +16,12 @@
 ```bash
 cd IsaacDungeonLayout
 dotnet build
-dotnet run -- test      # smoke + metadata + shuffle
+dotnet run -- test      # smoke + metadata + deck + shuffle
 dotnet run -- smoke
 dotnet run -- stress    # 100 сидов
 dotnet run -- helper
 dotnet run -- metadata
+dotnet run -- deck      # DeckFeasibility + TopologyPlugExpander
 dotnet run -- shuffle
 ```
 

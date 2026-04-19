@@ -1,21 +1,22 @@
 namespace IsaacDungeonLayout;
 
-/// <summary>Ожидаемые числа Base/Mob для валидации shuffle-layout (Start/End по одному).</summary>
-public readonly record struct ShuffleTypeExpectation(int BaseCount, int MobCount)
+/// <summary>Ожидаемые числа Base/Mob/Plug для валидации shuffle-layout (Start/End по одному).</summary>
+public readonly record struct ShuffleTypeExpectation(int BaseCount, int MobCount, int PlugCount = 0)
 {
     public static ShuffleTypeExpectation FromSlots(IReadOnlyList<RoomSlotDescriptor> slots)
     {
-        int b = 0, m = 0;
+        int b = 0, m = 0, p = 0;
         foreach (var s in slots)
         {
             switch (s.RoomType)
             {
                 case RoomType.Base: b++; break;
                 case RoomType.Mob: m++; break;
+                case RoomType.Plug: p++; break;
             }
         }
 
-        return new ShuffleTypeExpectation(b, m);
+        return new ShuffleTypeExpectation(b, m, p);
     }
 }
 
@@ -90,7 +91,7 @@ public sealed class ShuffleDungeonInput
             if (slotsDeg1 != cellsDeg1 || slotsBase != cellsBase)
             {
                 error =
-                    $"Несовпадение степеней: слотов с типом не-Base (S/E/Mob)={slotsDeg1}, клеток степени 1={cellsDeg1}; Base-слотов={slotsBase}, клеток степени 2..4={cellsBase}.";
+                    $"Несовпадение степеней: слотов с типом не-Base (S/E/Mob/Plug)={slotsDeg1}, клеток степени 1={cellsDeg1}; Base-слотов={slotsBase}, клеток степени 2..4={cellsBase}.";
                 return false;
             }
 

@@ -145,7 +145,13 @@ public static class MetadataEnrichmentTests
                 ConnectedNeighborPositions = new[] { p1 },
             },
         };
-        var trace = new DungeonTopologyTrace([], [], []);
+        var trace = new DungeonTopologyTrace
+        {
+            BaseCellPositions = [],
+            LeafSlotIterationOrder = [],
+            MobPlacementOrder = [],
+            PlugCellPositions = []
+        };
         return new DungeonLayout
         {
             Rooms = rooms,

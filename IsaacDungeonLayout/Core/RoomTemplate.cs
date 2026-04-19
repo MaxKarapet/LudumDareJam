@@ -29,7 +29,7 @@ public sealed class RoomTemplate
         {
             case RoomType.Base when OutsNum is < 2 or > 4:
                 throw new InvalidOperationException($"Шаблон {Id}: base должен иметь 2..4 выхода.");
-            case RoomType.Mob or RoomType.Start or RoomType.End when OutsNum != 1:
+            case RoomType.Mob or RoomType.Start or RoomType.End or RoomType.Plug when OutsNum != 1:
                 throw new InvalidOperationException($"Шаблон {Id}: тип {Type} требует ровно 1 выход.");
         }
     }

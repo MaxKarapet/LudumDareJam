@@ -115,6 +115,16 @@ var layout = outcome.Result!;
 // layout.Source == DungeonLayoutSource.Generated
 ```
 
+### 4.1. Заглушки Plug и проверка колоды
+
+- Отдельный [`Export`](LevelGenerator.cs) **`PlugScene`**: тупиковая комната (1 выход), тип в коде `RoomType.Plug`. Она **не** входит в `RoomScenes` и не расходует `TemplateUsageCapsById`. Если `PlugScene` задан, [`DungeonGenerator`](Generation/DungeonGenerator.cs) при провале подбора шаблонов может **добавлять клетки Plug** у границы полимино (до `MaxTopologyPlugExpansions`), пока не удастся назначить шаблоны.
+- В `RoomScenes` строку `plug` для типа комнаты **не** используйте — только `PlugScene`.
+- Перед ретраями вызывается [`DeckFeasibility`](Generation/DeckFeasibility.cs): заведомый провал (например `n=1` без base с 2 выходами) возвращается сразу; мягкие предупреждения пишутся в `DiagnosticLog`.
+
+Поля конфига: `PlugTemplateId`, `AllowTopologyPlugExpansion`, `MaxTopologyPlugExpansions` (см. [`DungeonGenerationConfig`](Core/DungeonGenerationConfig.cs)).
+
+**Теория и обобщение:** в текущей реализации Plug — это всегда клетка **степени 1** в графе (один выход в сторону «основного» данжа). В принципе тот же приём можно распространить на **заглушки под 2, 3 или 4** инцидентных ребра: отдельные маленькие комнаты/коридоры с шаблоном степени 2…4, которые «съедают» лишнюю степень соседа и оставляют граф валидным. Тогда задача смещается в **минимизацию числа таких вспомогательных клеток** (и шаблонов): чем меньше заглушек, тем ближе топология к «чистой» колоде из `RoomScenes`. Реализация в библиотеке пока заточена под тупик Plug×1; расширение до 2/3/4 — отдельный шаг планировщика и валидации.
+
 **Позиция и поворот:**
 
 - Мир: `Position = new Vector3(room.GridPosition.X * cellSize, 0, room.GridPosition.Z * cellSize)`.
@@ -165,7 +175,7 @@ foreach (var room in layout.Rooms)
 
 1. Соберите **`HashSet<Int2>`** всех занятых клеток данжа (в той же сетке, что и при генерации).
 2. Задайте **`StartPosition`** — клетка старта игрока.
-3. Постройте **`List<RoomSlotDescriptor>`**: по одному слоту на клетку, ровно один `RoomType.Start`, один `End`, остальные `Base`/`Mob` так, чтобы **число слотов степени 1** (не-Base) совпало с числом клеток сетки со степенью 1 (см. [ShuffleMode.md](docs/ShuffleMode.md)).
+3. Постройте **`List<RoomSlotDescriptor>`**: по одному слоту на клетку, ровно один `RoomType.Start`, один `End`, остальные `Base`/`Mob`/`Plug` так, чтобы **число слотов степени 1** (не-Base) совпало с числом клеток сетки со степенью 1 (см. [ShuffleMode.md](docs/ShuffleMode.md)).
 4. Передайте тот же каталог **`RoomTemplate`**, что и для `Generate` (или его подмножество, если слоты жёстко задают `RequiredTemplateId`).
 5. Задайте **`Seed`** для воспроизводимого порядка перебора при ничьях по BFS.
 
@@ -197,8 +207,10 @@ if (!outcome.Success)
 }
 // outcome.Result — новый DungeonLayout (Source == Shuffled)
 
-// Переспавн визуала по новому layout:
-// var outcome2 = levelGenerator.TryShuffleCurrentLayoutAndRespawn(gameSeed: 12345);
+// Обновить уже существующие ноды (позиции клеток те же; сцена меняется только при смене TemplateId):
+// var outcome2 = levelGenerator.TryShuffleCurrentLayoutInPlace(gameSeed: 12345);
+// Полное удаление и пересоздание (старое поведение):
+// var outcome3 = levelGenerator.TryShuffleCurrentLayoutWithFullRespawn(gameSeed: 12345);
 ```
 
 ---
@@ -219,7 +231,7 @@ if (!outcome.Success)
 - [ ] В пуле шаблонов есть **все** нужные степени для баз (2, 3, 4 выходов).
 - [ ] `MaxAttempts` и таймаут на UX при неудачной генерации.
 - [ ] Для shuffle: граф **связен**, слоты согласованы с `GridBfs.CellDegree` (см. валидацию входа).
-- [ ] Прогнать `dotnet run -- test` в каталоге `IsaacDungeonLayout` перед мержем.
+- [ ] Прогнать `dotnet run -- test` в каталоге `IsaacDungeonLayout` перед мержем (включает `deck`: DeckFeasibility + PlugExpander).
 
 ---
 
